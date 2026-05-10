@@ -714,49 +714,93 @@ Genera 4 secciones HTML sin markdown: 1. 🟢 <strong>Fortalezas</strong> (3 pun
   btn.disabled=false;dot.style.animation='none';
 }
 
-async function runSimple(){
-  const btn=$('simple-btn'),panel=$('simple-panel'),content=$('simple-content'),dot=$('simple-dot');
+function runSimple(){
+  const panel=$('simple-panel'),content=$('simple-content');
   const D=COMPANIES[CUR],last=D.years.length-1;
   $('simple-co-name').textContent=D.name;
-  panel.classList.add('open');panel.scrollIntoView({behavior:'smooth',block:'nearest'});
-  btn.disabled=true;dot.style.animation='pulse 1.5s infinite';
-  content.innerHTML='<div class="ai-loading"><div class="spinner"></div> Traduciendo a lenguaje simple...</div>';
+  panel.classList.add('open');
+  panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+
   const cagr=((Math.pow(Math.abs(D.revenue[last]/D.revenue[0]),1/(D.years.length-1))-1)*100).toFixed(1);
-  const prompt=`Sos un profesor que explica finanzas a alguien que NUNCA estudió economía ni negocios. Explicá esta empresa de forma simple, como si le hablaras a un amigo curioso.
+  const rev=D.revenue[last], revG=D.revenue_g[last], ly=D.years[last];
+  const gm=(D.gross_margin[last]*100).toFixed(0);
+  const fcf=D.fcf[last], fcfM=(D.fcf_margin[last]*100).toFixed(0);
+  const ni=D.net_income[last], nim=(D.profit_margin[last]*100).toFixed(0);
+  const cash=D.cash[last], debt=D.total_debt[last], netC=D.net_cash[last];
+  const pe=D.pe[last], ps=D.ps[last], pfcf=D.pfcf[last];
+  const mktcap=D.mktcap[last];
 
-Empresa: ${D.name} (${CUR}) — ${D.sector}
-Precio actual: ${D.last_price}
-Año analizado: ${D.years[last]}
+  // ── SECCIÓN 1: ¿A qué se dedica? ──────────────────────────────────────────
+  const negocioTexts = {
+    CRWD: `CrowdStrike es como un <strong>guardia de seguridad digital</strong> para computadoras y redes. Igual que un edificio contrata guardias para evitar robos, las empresas contratan a CrowdStrike para que proteja sus sistemas de hackers y virus. Todo funciona en la nube, lo que significa que no necesitás instalar nada — la protección llega automáticamente por internet. Cobra una suscripción mensual por empresa cliente, como Netflix pero para ciberseguridad.`,
+    ANET: `Arista Networks fabrica el "sistema de tuberías" que conecta miles de computadoras dentro de los grandes centros de datos. Imaginá que Google, Microsoft o Meta tienen edificios llenos de servidores — Arista hace los equipos que hacen que toda esa información fluya a velocidades enormes. Sin Arista (y empresas como ella), la IA y los videos de YouTube simplemente no funcionarían tan rápido.`,
+    O: `Realty Income es dueña de más de 15.600 propiedades en 19 países — supermercados, farmacias, tiendas de conveniencia, gimnasios. Las alquila a largo plazo (10-20 años) y los inquilinos pagan el alquiler más todos los gastos (impuestos, mantenimiento). Es como ser dueño de miles de locales comerciales y cobrar alquiler todos los meses sin preocuparte por nada más. Por eso paga dividendos mensuales hace más de 50 años seguidos.`,
+    GLNG: `Golar LNG convierte gas natural en líquido directamente en el mar, desde barcos gigantes llamados FLNG. Es como tener una fábrica flotante que toma gas de un pozo submarino, lo enfría a -160°C para que ocupe 600 veces menos espacio, y lo carga en otros barcos para exportar al mundo. Inventaron esta tecnología y son pioneros globales en ella.`,
+    SNDK: `SanDisk (antes parte de Western Digital) fabrica la memoria flash que se usa en celulares, computadoras, cámaras y centros de datos. Es como el "papel" digital donde se guarda toda la información. Con el boom de la inteligencia artificial, la demanda de almacenamiento explotó — los modelos de IA necesitan guardar cantidades enormes de datos.`,
+    NBIS: `Nebius es como un "Amazon Web Services europeo" especializado en inteligencia artificial. Alquila acceso a computadoras con chips especiales (GPUs NVIDIA H100/H200) que son las más potentes para entrenar modelos de IA. Una empresa que quiera desarrollar IA pero no tenga los recursos para comprar los chips, los alquila de Nebius. NVIDIA invirtió $2.000 millones en la empresa, lo que dice mucho de su potencial.`,
+    HIMS: `Hims & Hers es una farmacia y consultorio médico 100% online. Desde tu celular podés consultar con un médico, recibir un diagnóstico y que te manden el medicamento a tu casa — todo sin pisar una farmacia ni un hospital. Son especialmente conocidos por tratamientos de caída del cabello, salud sexual y ahora medicamentos para bajar de peso (GLP-1/semaglutida). Tienen 2.25 millones de suscriptores activos.`,
+    ONDS: `Ondas (antes American Robotics) fabrica drones autónomos para el ejército y seguridad. Sus drones pueden detectar y neutralizar otros drones enemigos (Counter-UAS), hacer vigilancia y reconocimiento, todo sin piloto. Es como tener soldados robot. Trabajan con Palantir (la empresa de análisis de datos del Pentágono) y recibieron contratos importantes del gobierno de EE.UU.`,
+    COP: `ConocoPhillips es una de las empresas petroleras más grandes del mundo — busca, extrae y vende petróleo y gas natural. Tienen pozos en EE.UU. (incluido el Permian Basin, el más productivo del país), Noruega, Qatar y otros países. Producen el equivalente a 2.1 millones de barriles de petróleo por día. A diferencia de las "supermajors" como ExxonMobil, ConocoPhillips solo se enfoca en extracción, no en refinación.`,
+    NEE: `NextEra Energy es la empresa eléctrica más grande del mundo por valor de mercado. Tiene dos partes: una distribuidora eléctrica tradicional en Florida (FPL) y la división de energías renovables más grande del mundo, con más de 35 gigavatios instalados en solar y eólico. Es como tener el enchufe de tu casa y también los paneles solares que generan la electricidad — todo en una sola empresa.`,
+    MP: `MP Materials es dueña de la única mina activa de tierras raras en EE.UU. (Mountain Pass, California). Las "tierras raras" son minerales críticos para fabricar los imanes permanentes que van en los motores de autos eléctricos, turbinas de viento y electrónica. Sin estos minerales, no hay Tesla, no hay turbina eólica. China domina el 90% de la producción mundial — MP Materials es la apuesta de EE.UU. para no depender de China.`,
+    CCJ: `Cameco es el mayor productor de uranio del mundo occidental (fuera de Kazakhstan y Rusia). El uranio es el combustible de las plantas nucleares, que generan electricidad sin emitir CO2. Con el boom de la IA, los centros de datos consumen tanta energía que Microsoft, Google y Amazon están firmando contratos con plantas nucleares. Más nuclear = más uranio = más negocio para Cameco.`,
+    FISV: `Fiserv es la empresa tecnológica detrás de millones de transacciones financieras que no ves. Cuando pasás tu tarjeta en un local, hay una chance alta de que Fiserv esté procesando ese pago en milisegundos. También fabrican las cajas registradoras inteligentes Clover (las que ves en muchos comercios). Procesan $2.5 billones (trillones en inglés) en pagos por año. Es la "fontanería invisible" del sistema financiero.`,
+  };
 
-Números clave:
-- Ventas: ${fmtM(D.revenue[last])} (creció ${P(D.revenue_g[last])} este año, CAGR ${cagr}% histórico)
-- De cada $100 que vende, le quedan $${(D.gross_margin[last]*100).toFixed(0)} de ganancia bruta
-- Margen operativo: ${P(D.op_margin[last])}
-- Ganancia neta: ${fmtM(D.net_income[last])} (${P(D.profit_margin[last])} de margen)
-- Efectivo real generado (FCF): ${fmtM(D.fcf[last])} (${P(D.fcf_margin[last])} de margen)
-- Retorno sobre capital (ROE): ${P(D.roe[last])}
-- Cash en caja: ${fmtM(D.cash[last])}
-- Deuda total: ${fmtM(D.total_debt[last])}
-- Valuación P/E: ${X(D.pe[last])}, P/S: ${X(D.ps[last])}, EV/EBITDA: ${X(D.ev_ebitda[last])}
-- Market Cap: ${fmtB(D.mktcap[last])}
+  // ── SECCIÓN 2: Ventas ──────────────────────────────────────────────────────
+  const revStr = fmtM(rev);
+  const growthStr = revG != null ? (revG >= 0 ? `creció un ${(revG*100).toFixed(1)}%` : `cayó un ${Math.abs(revG*100).toFixed(1)}%`) : 'sin dato de crecimiento';
+  const cagrDesc = cagr > 20 ? 'crecimiento explosivo' : cagr > 10 ? 'crecimiento sólido' : cagr > 0 ? 'crecimiento moderado' : 'ingresos volátiles';
+  const ventas2 = `En ${ly}, la empresa facturó <strong>${revStr}</strong> — este año ${growthStr} respecto al año anterior. En los últimos años tuvo un promedio de <strong>${cagr}% de crecimiento anual</strong>, lo que se llama CAGR y es básicamente ${cagrDesc}. ${revG != null && revG > 0.3 ? `Crecer más del 30% por año es excepcional — pocas empresas del mundo lo logran sostenidamente.` : revG != null && revG > 0.1 ? `Crecer entre 10-30% por año es considerado muy bueno para una empresa grande.` : `Para empresas maduras y grandes, crecimientos más moderados son normales y esperables.`}`;
 
-Generá una explicación en HTML con estas 5 secciones. Usá lenguaje MUY simple, analogías cotidianas, y ejemplos concretos. NUNCA uses jerga financiera sin explicarla:
+  // ── SECCIÓN 3: Ganancias ───────────────────────────────────────────────────
+  const fcfPositivo = fcf != null && fcf > 0;
+  const niPositivo = ni != null && ni > 0;
+  const fcfDesc = fcfM > 20 ? 'excelente — muy pocas empresas logran esto' : fcfM > 10 ? 'bueno' : fcfM > 0 ? 'modesto pero positivo' : 'negativo (todavía no genera caja libre)';
+  let ganancias2;
+  if(fcfPositivo){
+    ganancias2 = `De cada $100 que cobra, <strong>le quedan $${Math.abs(Number(fcfM))} como efectivo real</strong> en la caja (esto se llama FCF o Free Cash Flow — es la métrica más honesta). Eso es <strong>${fcfDesc}</strong>. ${gm > 60 ? `Además, su margen bruto del ${gm}% significa que cada producto/servicio que vende tiene un costo muy bajo — señal de negocio de alta calidad.` : `Su margen bruto del ${gm}% es típico del sector.`} ${niPositivo ? `La ganancia neta fue ${fmtM(ni)} (${nim}% de margen).` : `La ganancia contable es negativa (${fmtM(ni)}), pero el efectivo real generado es positivo — esto pasa porque hay gastos no monetarios como depreciaciones y compensaciones en acciones.`}`;
+  } else {
+    ganancias2 = `Por ahora <strong>la empresa no genera efectivo libre positivo</strong> — está en modo inversión, gastando más de lo que cobra para crecer. Esto no es necesariamente malo: Amazon, Uber y muchas grandes empresas tuvieron años así. La pregunta clave es si podrá generar caja en el futuro cuando deje de invertir tan agresivamente. Su margen bruto del ${gm}% ${gm > 50 ? 'es alto, lo que sugiere que el negocio tiene potencial de ser muy rentable cuando escale.' : 'muestra cómo está la calidad del negocio base.'}`;
+  }
 
-<div style="margin-bottom:12px"><strong style="color:#7dd3fc;font-size:12px">🏪 ¿A qué se dedica esta empresa?</strong><br><span style="font-size:11px;color:#E2E8F0;line-height:1.8">2-3 oraciones simples explicando el negocio con una analogía de la vida cotidiana</span></div>
+  // ── SECCIÓN 4: Deuda ──────────────────────────────────────────────────────
+  let deuda2;
+  if(netC > 0){
+    deuda2 = `La empresa tiene <strong>más plata en el banco que deudas</strong> — una posición financiera muy sólida. Tiene ${fmtM(cash)} en caja y ${fmtM(debt)} de deuda, lo que da una "caja neta positiva" de <strong>${fmtM(netC)}</strong>. Es como una persona que tiene $44.000 en el banco y solo $8.000 de tarjeta de crédito. Esa plata extra le da flexibilidad para invertir, comprar otras empresas o devolver dinero a los accionistas sin pedir prestado.`;
+  } else {
+    const ratio = debt > 0 && D.ebitda[last] > 0 ? (debt / D.ebitda[last]).toFixed(1) : null;
+    deuda2 = `La empresa tiene <strong>más deuda que caja disponible</strong> — debe ${fmtM(Math.abs(netC))} más de lo que tiene guardado. Tiene ${fmtM(cash)} en caja pero ${fmtM(debt)} de deuda total. ${ratio ? `El ratio Deuda/EBITDA es ${ratio}x, lo que significa que le llevaría ${ratio} años pagar toda la deuda con sus ganancias operativas. ${Number(ratio) < 3 ? 'Eso es manejable.' : Number(ratio) < 5 ? 'Es elevado pero no crítico.' : 'Es alto y hay que monitorear.'}` : 'Hay que monitorear cómo evoluciona esta situación.'} ${D.sector.includes('REIT') || D.sector.includes('Utility') || D.sector.includes('LNG') ? 'Para este tipo de empresa (infraestructura/real estate) la deuda alta es normal y esperada — sus activos físicos la respaldan.' : ''}`;
+  }
 
-<div style="margin-bottom:12px"><strong style="color:#7dd3fc;font-size:12px">📊 ¿Cómo le está yendo con las ventas?</strong><br><span style="font-size:11px;color:#E2E8F0;line-height:1.8">Explicar el revenue y crecimiento en términos simples. Ej: "Vendió X, que es como si una persona que ganaba $1000 ahora gana $X"</span></div>
+  // ── SECCIÓN 5: Valuación ──────────────────────────────────────────────────
+  let val2;
+  const psNum = ps != null ? ps : null;
+  const peNum = pe != null ? pe : null;
+  const pfcfNum = pfcf != null ? pfcf : null;
+  if(peNum && peNum > 0){
+    const peDesc = peNum > 60 ? 'muy caro según esta métrica' : peNum > 30 ? 'caro pero puede justificarse si crece rápido' : peNum > 15 ? 'valuación razonable' : 'barato para su sector';
+    val2 = `El <strong>P/E de ${peNum.toFixed(1)}x</strong> significa que por cada $1 de ganancia anual que produce, estás pagando $${peNum.toFixed(0)}. Dicho de otro modo, si la empresa mantuviera estas ganancias para siempre, tardarías ${peNum.toFixed(0)} años en recuperar tu inversión — lo cual parece ${peDesc}. ${psNum ? `El P/S de ${psNum.toFixed(1)}x dice que pagás $${psNum.toFixed(0)} por cada $1 de ventas.` : ''} ${pfcfNum ? `El P/FCF de ${pfcfNum.toFixed(1)}x es el más importante: pagás $${pfcfNum.toFixed(0)} por cada $1 de efectivo real que genera.` : ''} Recordá que una valuación alta puede estar justificada si la empresa crece rápido — lo caro de hoy puede ser barato mañana si el negocio sigue escalando.`;
+  } else if(psNum && psNum > 0){
+    val2 = `No tiene P/E calculable (porque tuvo pérdidas contables), pero el <strong>P/S de ${psNum.toFixed(1)}x</strong> dice que por cada $1 de ventas, el mercado paga $${psNum.toFixed(0)}. ${psNum > 20 ? 'Es una valuación muy alta — el mercado está apostando a un crecimiento futuro enorme.' : psNum > 5 ? 'Es una valuación elevada, típica de empresas de alto crecimiento.' : 'Es una valuación moderada para el sector.'} ${pfcfNum && pfcfNum > 0 ? `El P/FCF de ${pfcfNum.toFixed(1)}x es la métrica más útil: pagás $${pfcfNum.toFixed(0)} por cada $1 de efectivo real generado.` : 'Como todavía no genera FCF positivo consistente, el mercado la valúa por su potencial futuro de ventas y márgenes.'}`;
+  } else {
+    val2 = `La valuación es difícil de calcular con múltiplos tradicionales porque la empresa aún no tiene ganancias o FCF positivo. El mercado la valúa principalmente por su <strong>potencial de crecimiento futuro</strong> — es una apuesta a lo que puede llegar a ser, no a lo que es hoy. Esto implica mayor riesgo pero también mayor potencial de retorno si el negocio se desarrolla como se espera.`;
+  }
 
-<div style="margin-bottom:12px"><strong style="color:#7dd3fc;font-size:12px">💵 ¿Está ganando o perdiendo plata?</strong><br><span style="font-size:11px;color:#E2E8F0;line-height:1.8">Explicar márgenes y FCF. Traducir el margen a "de cada $100 que cobra, le quedan $X". Explicar si es bueno o malo vs otras empresas.</span></div>
+  // ── RENDER ─────────────────────────────────────────────────────────────────
+  const sec = (emoji, title, text) => `
+    <div style="margin-bottom:14px;padding:10px 12px;background:rgba(14,165,233,.06);border-left:3px solid #0ea5e9;border-radius:0 8px 8px 0">
+      <div style="font-size:11px;font-weight:700;color:#7dd3fc;margin-bottom:5px">${emoji} ${title}</div>
+      <div style="font-size:11px;color:#CBD5E1;line-height:1.8">${text}</div>
+    </div>`;
 
-<div style="margin-bottom:12px"><strong style="color:#7dd3fc;font-size:12px">🏦 ¿Está endeudada o tiene plata guardada?</strong><br><span style="font-size:11px;color:#E2E8F0;line-height:1.8">Explicar la situación de deuda y cash en términos simples. Comparar con algo cotidiano.</span></div>
-
-<div style="margin-bottom:12px"><strong style="color:#7dd3fc;font-size:12px">💰 ¿Está cara o barata para comprar?</strong><br><span style="font-size:11px;color:#E2E8F0;line-height:1.8">Explicar P/E y P/S en términos simples. Ej: "Estás pagando $X por cada $1 de ganancia". Dar contexto si es caro o barato. Terminar con una frase de veredicto simple.</span></div>`;
-  try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1200,messages:[{role:'user',content:prompt}]})});
-    const data=await res.json();
-    content.innerHTML=(data.content?.filter(b=>b.type==='text').map(b=>b.text).join('')||'Sin respuesta.').replace(/\n/g,'<br>');
-  }catch(e){content.innerHTML='<span style="color:var(--bad)">Error de conexion.</span>';}
-  btn.disabled=false;dot.style.animation='none';
+  content.innerHTML =
+    sec('🏪', '¿A qué se dedica esta empresa?', negocioTexts[CUR] || D.description) +
+    sec('📊', '¿Cómo le está yendo con las ventas?', ventas2) +
+    sec('💵', '¿Está ganando o perdiendo plata?', ganancias2) +
+    sec('🏦', '¿Está endeudada o tiene plata guardada?', deuda2) +
+    sec('💰', '¿Está cara o barata para comprar?', val2) +
+    `<div style="font-size:9px;color:var(--muted);margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">⚠️ Explicación educativa generada automáticamente con los datos del dashboard. No es recomendación de inversión.</div>`;
 }
 
 async function runRanking(){
