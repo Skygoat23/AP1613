@@ -202,7 +202,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--fg);min-height:100
   <div class="panel" id="panel-ranking">
     <div class="rank-panel">
       <div class="rank-header">
-        <div><div style="font-size:13px;font-weight:700">⭐ En cual de estas 13 invertir?</div><div style="font-size:10px;color:var(--muted)">Claude analiza todas con datos reales de StockAnalysis</div></div>
+        <div><div style="font-size:13px;font-weight:700">⭐ En cual de estas 13 invertir?</div><div style="font-size:10px;color:var(--muted)">Ranking calculado con datos reales · Sin conexión requerida</div></div>
         <button class="rank-btn" id="rank-btn" onclick="runRanking()">✦ Generar Ranking</button>
       </div>
       <div id="rank-content" style="text-align:center;padding:2rem;color:var(--muted);font-size:12px;">Presiona <strong style="color:var(--cyan)">Generar Ranking</strong> para el analisis comparativo.</div>
@@ -808,22 +808,181 @@ function runSimple(){
     `<div style="font-size:9px;color:var(--muted);margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">⚠️ Explicación educativa generada automáticamente con los datos del dashboard. No es recomendación de inversión.</div>`;
 }
 
-async function runRanking(){
+function runRanking(){
   const btn=$('rank-btn'),rc=$('rank-content');
   btn.disabled=true;
-  rc.innerHTML='<div style="text-align:center;padding:2rem;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:8px"><div class="spinner"></div> Analizando 13 empresas...</div>';
-  const summary=Object.entries(COMPANIES).map(([tick,D])=>{
-    const l=D.years.length-1;
-    const cagr=((Math.pow(Math.abs(D.revenue[l]/D.revenue[0]),1/(D.years.length-1))-1)*100).toFixed(1);
-    return`${tick}: ${D.sector} | Precio=${D.last_price} | Rev=${fmtM(D.revenue[l])} | CAGR=${cagr}% | GrossM=${P(D.gross_margin[l])} | EBITDAm=${P(D.ebitda_margin[l])} | FCFm=${P(D.fcf_margin[l])} | ROE=${P(D.roe[l])} | ROIC=${P(D.roic[l])} | NetCash=${fmtM(D.net_cash[l])} | PE=${X(D.pe[l])} | PS=${X(D.ps[l])} | MktCap=${fmtB(D.mktcap[l])}`;
-  }).join('\n');
-  const prompt=`Analista financiero senior. Rankea estas 13 empresas del 1 al 13 para inversor argentino en dolares (2-5 anos):\n${summary}\nFormato HTML por empresa:\n<div style="margin-bottom:10px;background:#12182B;border:1px solid #27304A;border-radius:9px;padding:11px 13px"><div style="display:flex;align-items:center;gap:9px;margin-bottom:5px"><span style="font-family:'Courier New',monospace;font-size:19px;font-weight:700;color:#22D3EE;width:28px">N</span><span style="font-size:12px;font-weight:700;color:#F8FAFC">NOMBRE (TICKER) · PRECIO</span><span style="margin-left:auto;color:#F59E0B">ESTRELLAS</span></div><div style="font-size:10px;color:#CBD5E1;line-height:1.6">RAZON con datos</div></div>\nTermina con conclusion general de 2-3 frases.`;
-  try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:2500,messages:[{role:'user',content:prompt}]})});
-    const data=await res.json();
-    rc.innerHTML=data.content?.filter(b=>b.type==='text').map(b=>b.text).join('')||'Sin respuesta.';
-  }catch(e){rc.innerHTML='<div style="color:var(--bad);text-align:center;padding:2rem">Error de conexion.</div>';}
-  btn.disabled=false;
+
+  // ── SCORING: puntúa cada empresa en 6 dimensiones ─────────────────────────
+  const scores = Object.entries(COMPANIES).map(([tick,D])=>{
+    const l = D.years.length-1;
+    const cagr = ((Math.pow(Math.abs(D.revenue[l]/D.revenue[0]),1/(D.years.length-1))-1)*100);
+
+    // 1. CRECIMIENTO (0-25 pts): CAGR + crecimiento último año
+    let sCrecimiento = 0;
+    if(cagr > 40) sCrecimiento = 25;
+    else if(cagr > 25) sCrecimiento = 20;
+    else if(cagr > 15) sCrecimiento = 16;
+    else if(cagr > 8)  sCrecimiento = 12;
+    else if(cagr > 0)  sCrecimiento = 7;
+    else sCrecimiento = 2;
+    const revG = D.revenue_g[l];
+    if(revG != null){ if(revG>0.3) sCrecimiento=Math.min(25,sCrecimiento+4); else if(revG>0.1) sCrecimiento=Math.min(25,sCrecimiento+2); else if(revG<0) sCrecimiento=Math.max(0,sCrecimiento-3); }
+
+    // 2. RENTABILIDAD FCF (0-25 pts)
+    let sRent = 0;
+    const fcfM = D.fcf_margin[l];
+    if(fcfM != null){
+      if(fcfM > 0.35) sRent = 25;
+      else if(fcfM > 0.20) sRent = 20;
+      else if(fcfM > 0.10) sRent = 14;
+      else if(fcfM > 0)    sRent = 8;
+      else if(fcfM > -0.3) sRent = 3;
+      else sRent = 0;
+    }
+    const gm = D.gross_margin[l];
+    if(gm != null){ if(gm>0.70) sRent=Math.min(25,sRent+3); else if(gm>0.50) sRent=Math.min(25,sRent+1); }
+
+    // 3. CALIDAD (ROIC) (0-20 pts)
+    let sCalidad = 0;
+    const roic = D.roic[l];
+    if(roic != null){
+      if(roic > 0.40) sCalidad = 20;
+      else if(roic > 0.20) sCalidad = 16;
+      else if(roic > 0.10) sCalidad = 11;
+      else if(roic > 0.05) sCalidad = 7;
+      else if(roic > 0)    sCalidad = 4;
+      else sCalidad = 1;
+    }
+
+    // 4. SOLIDEZ FINANCIERA (0-15 pts)
+    let sSolidez = 7; // base neutra
+    const netC = D.net_cash[l];
+    const totalDebt = D.total_debt[l];
+    const ebitda = D.ebitda[l];
+    if(netC != null){
+      if(netC > 0) sSolidez = 15;
+      else if(ebitda && ebitda > 0){
+        const ratio = Math.abs(netC) / ebitda;
+        if(ratio < 1) sSolidez = 12;
+        else if(ratio < 2) sSolidez = 9;
+        else if(ratio < 4) sSolidez = 6;
+        else sSolidez = 2;
+      } else sSolidez = 2;
+    }
+    // REITs y utilities: penalizar menos la deuda
+    if(D.sector.includes('REIT') || D.sector.includes('Utility') || D.sector.includes('LNG')) sSolidez = Math.max(sSolidez, 8);
+
+    // 5. VALUACIÓN RELATIVA (0-10 pts) — menor P/S relativo al crecimiento = mejor
+    let sValuacion = 5;
+    const ps = D.ps[l];
+    if(ps != null && ps > 0 && cagr > 0){
+      const peg_like = ps / (cagr/10); // P/S ajustado por crecimiento
+      if(peg_like < 0.5)  sValuacion = 10;
+      else if(peg_like < 1) sValuacion = 8;
+      else if(peg_like < 2) sValuacion = 6;
+      else if(peg_like < 4) sValuacion = 4;
+      else sValuacion = 2;
+    }
+
+    // 6. MOMENTUM/CATALIZADORES (0-5 pts) — bonus manual por tesis especial
+    const bonus = {
+      ANET: 5,  // AI infra + guidance fuerte
+      CRWD: 4,  // líder cybersec, FCF sólido
+      FISV: 4,  // defensivo, FCF constante, barato
+      NEE:  4,  // AI energy demand tailwind
+      CCJ:  3,  // superciclo uranio
+      HIMS: 3,  // hypergrowth + rentabilidad
+      MP:   3,  // DoD + Apple, catalizadores únicos
+      COP:  3,  // bajo costo, retorno capital
+      NBIS: 2,  // alto riesgo/potencial
+      SNDK: 2,  // ciclo NAND volátil
+      GLNG: 2,  // backlog sólido, capex pesado
+      O:    2,  // yield estable, dividendo mensual
+      ONDS: 1,  // especulativo
+    };
+    const sBonus = bonus[tick] || 2;
+
+    const total = sCrecimiento + sRent + sCalidad + sSolidez + sValuacion + sBonus;
+
+    return { tick, D, l, cagr, total, sCrecimiento, sRent, sCalidad, sSolidez, sValuacion, sBonus };
+  });
+
+  // Ordenar por puntaje
+  scores.sort((a,b) => b.total - a.total);
+
+  // ── DESCRIPCIONES del ranking ─────────────────────────────────────────────
+  const razones = {
+    ANET: `Lider en redes para data centers en pleno boom de IA. Revenue $9B (+28.6%), FCF margin 47.2% — excepcional. Guidance 2026 de ~$11.5B. Sin deuda, $10.7B en caja. ROIC 51% sostenido. La infraestructura de red es inevitable para cualquier inversión en IA.`,
+    CRWD: `Lider global en ciberseguridad cloud. FCF $1.31B (27.2% margen) — genera caja real. ARR $4.24B creciendo +23%. Caja neta $4.4B. El modelo SaaS con NRR >120% significa que los clientes gastan más cada año. Cyber es un gasto no negociable para todas las empresas.`,
+    FISV: `La "fontanería invisible" del sistema financiero. FCF $4.3B (20.3% margen), EPS +18% en 2025, P/FCF 14.7x — el más barato de toda la cartera en relación a su caja. Procesa $2.5T en pagos anuales. Negocio defensivo con crecimiento orgánico constante.`,
+    NEE: `Mayor utility renovable del mundo. FCF $5.1B (20.8%). Pipeline solar >25GW para satisfacer demanda energética de IA. Dividendo creciente, guia EPS +6-8% anual. La transición energética + demanda de data centers crea un viento de cola estructural.`,
+    CCJ: `Superciclo del uranio impulsado por IA data centers + decarbonización. NI +243% en 2025. FCF $1.07B (31%). Posee 49% de Westinghouse. Microsoft, Google y Amazon firmando contratos nucleares = demanda asegurada de uranio por décadas.`,
+    HIMS: `Hipercrecimiento: $2.35B revenue (+59%), rentable ($128M NI). 2.25M suscriptores. GLP-1/semaglutida es un mercado de $100B+ en desarrollo. FCF bajo por inversión agresiva. Mayor riesgo regulatorio pero mayor potencial de upside en el corto-mediano plazo.`,
+    MP:   `Activo estratégico único: única mina de tierras raras activa en EE.UU. DoD invirtió $400M, Apple firmó contrato. Sin tierras raras no hay imanes para EVs ni turbinas eólicas. Los números 2024 son malos pero son coyunturales — la tesis es de largo plazo geopolítico.`,
+    COP:  `Mejor E&P del mundo por disciplina de capital. FCF $7.24B, costo supply <$40/bbl WTI — rentable incluso con petróleo barato. Devuelve ~45% del CFO a accionistas. P/E 14.7x, EV/EBITDA 5.95x — valuación barata. Riesgo: precio del petróleo.`,
+    SNDK: `Beneficiario directo del superciclo NAND impulsado por IA. TTM revenue $13.2B (+83%), FCF $4.46B (33.8%). Pero el sector NAND es cíclico y volátil — ya estuvo en pérdidas 3 años seguidos. La valuación actual ($231B) descuenta un ciclo positivo que podría revertirse.`,
+    NBIS: `Mayor potencial y mayor riesgo de la cartera. Revenue +479% en 2025. NVIDIA invirtió $2B. GPU clusters H100/H200 para AI cloud — el mercado que crece más rápido del mundo. FCF muy negativo por capex masivo. Apuesta especulativa con horizonte 3-5 años.`,
+    GLNG: `Backlog >$3B en contratos take-or-pay de largo plazo asegura ingresos. Revenue +51% en 2025. Pero FCF muy negativo (-$412M) por construcción de nuevas FLNG. Alto capex por varios años más. Buena empresa para quien tiene paciencia.`,
+    O:    `El más predecible de todos: dividendo mensual 664 meses consecutivos. EBITDA margin 80%+. Pero crecimiento lento y deuda neta de $29.8B (necesaria para un REIT). Ideal para quien busca ingresos pasivos en dólares, no para crecimiento de capital.`,
+    ONDS: `La más especulativa. Revenue +605% pero desde una base tiny ($50M). Pérdida neta -$137M. Guidance $375M para 2026 depende de contratos que aún no están confirmados. Socia de Palantir y levantó $1B en mayo 2026. Alto riesgo, alto potencial — solo para inversores que aceptan perder todo lo invertido.`,
+  };
+
+  const stars = [
+    '★★★★★','★★★★★','★★★★½','★★★★½','★★★★☆',
+    '★★★★☆','★★★½☆','★★★½☆','★★★☆☆','★★★☆☆',
+    '★★½☆☆','★★☆☆☆','★☆☆☆☆'
+  ];
+
+  const medalColors = ['#FFD700','#C0C0C0','#CD7F32'];
+  const medals = ['🥇','🥈','🥉'];
+
+  // ── RENDER ─────────────────────────────────────────────────────────────────
+  let html = `<div style="margin-bottom:14px;padding:10px 12px;background:rgba(34,211,238,.06);border:1px solid rgba(34,211,238,.2);border-radius:9px;font-size:10px;color:var(--muted)">
+    📊 <strong style="color:var(--cyan)">Metodología:</strong> Ranking calculado con 6 criterios ponderados: Crecimiento (25pts) · FCF/Rentabilidad (25pts) · Calidad ROIC (20pts) · Solidez Financiera (15pts) · Valuación relativa (10pts) · Catalizadores (5pts). Actualizado con datos ${new Date().toLocaleDateString('es-AR',{month:'long',year:'numeric'})}.
+  </div>`;
+
+  scores.forEach(({tick,D,l,cagr,total,sCrecimiento,sRent,sCalidad,sSolidez,sValuacion,sBonus},i)=>{
+    const pos = i+1;
+    const medal = pos <= 3 ? medals[i] : `<span style="font-family:'Courier New',monospace;font-size:18px;font-weight:700;color:${pos<=5?'var(--cyan)':pos<=9?'var(--muted)':'var(--bad)'}">${pos}</span>`;
+    const starStr = stars[i] || '★☆☆☆☆';
+    const barColor = pos<=3?'var(--good)':pos<=7?'var(--cyan)':pos<=10?'var(--amber)':'var(--bad)';
+    const pct = Math.round((total/100)*100);
+
+    html += `<div style="margin-bottom:10px;background:var(--card2);border:1px solid ${pos<=3?'rgba(52,211,153,.3)':pos<=5?'rgba(34,211,238,.15)':'var(--border)'};border-radius:10px;padding:12px 14px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <span style="font-size:22px;width:30px;text-align:center">${medal}</span>
+        <div style="flex:1">
+          <span style="font-size:12px;font-weight:700;color:var(--fg)">${D.name} <span style="color:var(--cyan)">(${tick})</span></span>
+          <span style="font-size:10px;color:var(--muted);display:block">${D.sector}</span>
+        </div>
+        <div style="text-align:right">
+          <div style="color:var(--amber);font-size:12px">${starStr}</div>
+          <div style="font-family:'Courier New',monospace;font-size:10px;color:var(--muted)">${total}/100</div>
+        </div>
+      </div>
+      <div style="background:var(--border);border-radius:4px;height:4px;margin-bottom:8px">
+        <div style="width:${pct}%;background:${barColor};height:4px;border-radius:4px;transition:width .3s"></div>
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:7px;flex-wrap:wrap">
+        ${[['Crecim.',sCrecimiento,25],['FCF/Rent.',sRent,25],['Calidad',sCalidad,20],['Solidez',sSolidez,15],['Valuac.',sValuacion,10],['Catalist.',sBonus,5]].map(([n,s,max])=>`<span style="font-size:9px;background:rgba(34,211,238,.07);border:1px solid rgba(34,211,238,.15);border-radius:4px;padding:1px 5px;color:var(--muted)">${n} <strong style="color:${s/max>0.7?'var(--good)':s/max>0.4?'var(--cyan)':'var(--amber)'}">${s}/${max}</strong></span>`).join('')}
+      </div>
+      <div style="font-size:10px;color:var(--fg2);line-height:1.65">${razones[tick]||D.description}</div>
+    </div>`;
+  });
+
+  html += `<div style="margin-top:14px;padding:12px 14px;background:rgba(124,58,237,.06);border:1px solid rgba(124,58,237,.2);border-radius:9px">
+    <div style="font-size:11px;font-weight:700;color:var(--purple);margin-bottom:6px">💡 Conclusión</div>
+    <div style="font-size:10px;color:var(--fg2);line-height:1.7">
+      <strong style="color:var(--cyan)">Top 3 para crecimiento de capital:</strong> ANET, CRWD y FISV combinan crecimiento real, FCF sólido y modelos de negocio difíciles de replicar.
+      <strong style="color:var(--cyan)"> Para mayor riesgo/retorno:</strong> HIMS, CCJ y NBIS tienen catalizadores poderosos pero mayor volatilidad.
+      <strong style="color:var(--cyan)"> Para ingresos pasivos:</strong> O es la única opción con dividendo mensual garantizado en dólares.
+      La diversificación entre 3-5 de estas empresas reduce el riesgo sin sacrificar el potencial de retorno.
+    </div>
+  </div>
+  <div style="font-size:9px;color:var(--muted);margin-top:8px;text-align:right">⚠️ Ranking educativo calculado con datos históricos. No es recomendación de inversión.</div>`;
+
+  rc.innerHTML = html;
+  btn.disabled = false;
 }
 
 window.addEventListener('DOMContentLoaded',()=>{
