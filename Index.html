@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Nico Aronne AP 1613</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root{
+  --bg:#0B0F1A;--card:#12182B;--card2:#111827;--border:#27304A;--border2:#2A3350;
+  --fg:#F8FAFC;--fg2:#E2E8F0;--fg3:#CBD5E1;--muted:#94A3B8;
+  --cyan:#22D3EE;--violet:#7C3AED;--pink:#F472B6;--green:#34D399;
+  --amber:#F59E0B;--blue:#60A5FA;--purple:#A78BFA;
+  --good:#34D399;--bad:#F87171;--grid:#1E293B;
+  --mono:'Courier New',Courier,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:var(--sans);background:var(--bg);color:var(--fg);min-height:100vh;font-size:13px;}
+.hdr{background:var(--card);border-bottom:1px solid var(--border);padding:0 1rem;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;gap:8px;}
+.logo{display:flex;align-items:center;gap:8px;}
+.logo-icon{width:28px;height:28px;background:linear-gradient(135deg,var(--cyan),var(--violet));border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;}
+.logo-name{font-size:13px;font-weight:700;}
+.logo-sub{font-size:9px;color:var(--muted);}
+.hdr-right{display:flex;align-items:center;gap:6px;}
+.tick-pill{background:rgba(34,211,238,.1);border:1px solid rgba(34,211,238,.3);color:var(--cyan);padding:2px 8px;border-radius:20px;font-family:var(--mono);font-size:10px;}
+.ai-btn{background:linear-gradient(135deg,var(--violet),var(--cyan));border:none;color:#fff;padding:6px 11px;border-radius:8px;font-size:10px;font-weight:600;cursor:pointer;}
+.ai-btn:disabled{opacity:.4;cursor:not-allowed;}
+.sel-bar{background:var(--card2);border-bottom:1px solid var(--border);padding:6px 1rem;display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
+.co-btn{padding:3px 9px;border:1px solid var(--border2);background:transparent;border-radius:20px;font-size:10px;font-weight:600;color:var(--fg3);cursor:pointer;transition:all .15s;}
+.co-btn:hover{border-color:var(--cyan);color:var(--cyan);}
+.co-btn.active{background:rgba(34,211,238,.12);border-color:var(--cyan);color:var(--cyan);}
+.main{padding:1rem;max-width:1400px;margin:0 auto;}
+.tabs{display:flex;gap:2px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:3px;margin-bottom:1rem;flex-wrap:wrap;width:fit-content;}
+.tab{padding:5px 11px;border:none;background:transparent;border-radius:7px;font-size:10px;font-weight:600;color:var(--muted);cursor:pointer;transition:all .15s;white-space:nowrap;}
+.tab.active{background:var(--border2);color:var(--fg);}
+.tab:hover:not(.active){color:var(--fg2);}
+.panel{display:none;}.panel.active{display:block;}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:1rem;}
+.kpi{background:var(--card);border:1px solid var(--border2);border-radius:12px;padding:.75rem .9rem;position:relative;overflow:hidden;}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent,var(--cyan));}
+.kpi-lbl{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:5px;}
+.kpi-val{font-family:var(--mono);font-size:17px;font-weight:600;color:var(--fg);line-height:1;margin-bottom:2px;}
+.kpi-sub{font-size:9px;color:var(--muted);}
+.delta{display:inline-flex;align-items:center;gap:2px;font-family:var(--mono);font-size:9px;padding:1px 4px;border-radius:3px;margin-left:3px;}
+.delta.up{background:rgba(52,211,153,.15);color:var(--good);}
+.delta.dn{background:rgba(248,113,113,.15);color:var(--bad);}
+.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+.chart-card{background:var(--card);border:1px solid var(--border2);border-radius:12px;padding:.9rem 1rem;}
+.cc-label{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:2px;}
+.cc-hl{font-family:var(--mono);font-size:14px;font-weight:600;color:var(--fg);margin-bottom:.7rem;}
+.chart-legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;}
+.cl-item{display:flex;align-items:center;gap:4px;font-size:9px;color:var(--muted);}
+.cl-dot{width:7px;height:7px;border-radius:2px;}
+.mult-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:1rem;}
+.mult-card{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:9px 11px;}
+.mult-name{font-size:9px;font-weight:600;text-transform:uppercase;color:var(--muted);margin-bottom:3px;}
+.mult-val{font-family:var(--mono);font-size:16px;font-weight:600;color:var(--fg);}
+.mult-hist{font-size:9px;margin-top:2px;}
+.ai-panel{background:var(--card);border:1px solid var(--violet);border-radius:12px;padding:1rem;margin-bottom:1rem;display:none;}
+.ai-panel.open{display:block;}
+.ai-header{display:flex;align-items:center;gap:7px;margin-bottom:.6rem;}
+.ai-dot{width:6px;height:6px;border-radius:50%;background:var(--violet);}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+.ai-title{font-size:11px;font-weight:600;color:var(--purple);}
+.ai-content{font-size:11px;line-height:1.75;color:var(--fg2);}
+.ai-content strong{color:var(--cyan);}
+.ai-loading{color:var(--muted);font-size:11px;display:flex;align-items:center;gap:7px;}
+.spinner{width:12px;height:12px;border:2px solid var(--border2);border-top-color:var(--violet);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.profile-card{background:var(--card);border:1px solid var(--border2);border-radius:12px;padding:1.2rem;margin-bottom:10px;}
+.profile-header{display:flex;align-items:flex-start;gap:12px;margin-bottom:1rem;flex-wrap:wrap;}
+.profile-logo{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--cyan),var(--violet));flex-shrink:0;}
+.profile-title{font-size:18px;font-weight:700;}
+.profile-ticker{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:1px;}
+.profile-desc{font-size:12px;line-height:1.65;color:var(--fg2);margin-bottom:1rem;}
+.profile-tags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:1rem;}
+.ptag{padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500;}
+.profile-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:7px;}
+.fact{background:var(--card2);border:1px solid var(--border);border-radius:9px;padding:.6rem .8rem;}
+.fact-label{font-size:9px;font-weight:600;text-transform:uppercase;color:var(--muted);margin-bottom:3px;}
+.fact-val{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--fg);}
+.rank-panel{background:var(--card);border:1px solid var(--border2);border-radius:12px;padding:1.1rem;margin-bottom:10px;}
+.rank-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.9rem;flex-wrap:wrap;gap:7px;}
+.rank-btn{background:linear-gradient(135deg,var(--violet),var(--pink));border:none;color:#fff;padding:7px 14px;border-radius:8px;font-size:10px;font-weight:600;cursor:pointer;}
+.rank-btn:disabled{opacity:.4;cursor:not-allowed;}
+.sec-hdr{display:flex;align-items:center;gap:7px;margin-bottom:.8rem;}
+.sec-dot{width:6px;height:6px;border-radius:50%;background:var(--cyan);}
+.sec-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;}
+.sec-line{flex:1;height:1px;background:var(--border);}
+.disclaimer{background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2);border-radius:8px;padding:.6rem .9rem;font-size:10px;color:var(--muted);line-height:1.6;margin-top:1rem;}
+.disclaimer strong{color:var(--amber);}
+.footer{font-size:9px;color:var(--muted);text-align:right;margin-top:.6rem;padding-top:.7rem;border-top:1px solid var(--border);}
+@media(max-width:640px){
+  .charts-row{grid-template-columns:1fr;}
+  .mult-grid{grid-template-columns:repeat(2,1fr);}
+  .kpi-grid{grid-template-columns:repeat(2,1fr);}
+  .tabs{width:100%;}
+  .tab{font-size:9px;padding:4px 7px;}
+}
+</style>
+</head>
+<body>
+<header class="hdr">
+  <div class="logo">
+    <div class="logo-icon">NA</div>
+    <div>
+      <div class="logo-name">Nico Aronne AP 1613</div>
+      <div class="logo-sub">Equity Dashboard · Datos verificados StockAnalysis</div>
+    </div>
+  </div>
+  <div class="hdr-right">
+    <div class="tick-pill" id="hdr-tick">CRWD</div>
+    <button class="ai-btn" id="ai-btn" onclick="runAI()">✦ Analizar con IA</button>
+  </div>
+</header>
+<div class="sel-bar" id="sel-bar"></div>
+<div class="main">
+  <div class="ai-panel" id="ai-panel">
+    <div class="ai-header"><div class="ai-dot" id="ai-dot"></div><div class="ai-title">Analisis IA · <span id="ai-co-name">—</span></div></div>
+    <div class="ai-content" id="ai-content"></div>
+  </div>
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('perfil',this)">🏢 Empresa</button>
+    <button class="tab" onclick="switchTab('negocio',this)">📈 Negocio</button>
+    <button class="tab" onclick="switchTab('rentabilidad',this)">💰 Rentabilidad</button>
+    <button class="tab" onclick="switchTab('financiera',this)">🏦 Financiera</button>
+    <button class="tab" onclick="switchTab('valuacion',this)">🔢 Valuacion</button>
+    <button class="tab" onclick="switchTab('ranking',this)" style="color:var(--amber)">⭐ Ranking IA</button>
+  </div>
+  <div class="panel active" id="panel-perfil"><div class="profile-card" id="profile-card"></div></div>
+  <div class="panel" id="panel-negocio">
+    <div class="kpi-grid" id="kpi-negocio"></div>
+    <div class="charts-row">
+      <div class="chart-card"><div class="cc-label">Revenue &amp; Earnings</div><div class="cc-hl" id="hl-rev">—</div><div style="height:190px"><canvas id="ch-rev"></canvas></div><div class="chart-legend" id="leg-rev"></div></div>
+      <div class="chart-card"><div class="cc-label">Crecimiento YoY</div><div class="cc-hl" id="hl-revg">—</div><div style="height:190px"><canvas id="ch-revg"></canvas></div></div>
+    </div>
+    <div class="charts-row">
+      <div class="chart-card"><div class="cc-label">EBITDA y Margen</div><div class="cc-hl" id="hl-ebitda">—</div><div style="height:190px"><canvas id="ch-ebitda"></canvas></div></div>
+      <div class="chart-card"><div class="cc-label">Net Income y EPS</div><div class="cc-hl" id="hl-ni">—</div><div style="height:190px"><canvas id="ch-ni"></canvas></div></div>
+    </div>
+  </div>
+  <div class="panel" id="panel-rentabilidad">
+    <div class="kpi-grid" id="kpi-rent"></div>
+    <div class="charts-row">
+      <div class="chart-card"><div class="cc-label">Margenes</div><div class="cc-hl" id="hl-margins">—</div><div style="height:200px"><canvas id="ch-margins"></canvas></div><div class="chart-legend" id="leg-margins"></div></div>
+      <div class="chart-card"><div class="cc-label">Free Cash Flow</div><div class="cc-hl" id="hl-fcf">—</div><div style="height:200px"><canvas id="ch-fcf"></canvas></div><div class="chart-legend" id="leg-fcf"></div></div>
+    </div>
+    <div class="charts-row">
+      <div class="chart-card"><div class="cc-label">Retornos Capital</div><div class="cc-hl" id="hl-returns">—</div><div style="height:190px"><canvas id="ch-returns"></canvas></div><div class="chart-legend" id="leg-returns"></div></div>
+      <div class="chart-card"><div class="cc-label">FCF vs Profit Margin</div><div class="cc-hl" id="hl-fcfm">—</div><div style="height:190px"><canvas id="ch-fcfm"></canvas></div><div class="chart-legend" id="leg-fcfm"></div></div>
+    </div>
+  </div>
+  <div class="panel" id="panel-financiera">
+    <div class="kpi-grid" id="kpi-fin"></div>
+    <div class="charts-row">
+      <div class="chart-card"><div class="cc-label">Cash vs Deuda Total</div><div class="cc-hl" id="hl-cash">—</div><div style="height:190px"><canvas id="ch-cash"></canvas></div><div class="chart-legend" id="leg-cash"></div></div>
+      <div class="chart-card"><div class="cc-label">Net Cash / Deuda Neta</div><div class="cc-hl" id="hl-netcash">—</div><div style="height:190px"><canvas id="ch-netcash"></canvas></div></div>
+    </div>
+    <div class="charts-row">
+      <div class="chart-card"><div class="cc-label">Total Assets vs Equity</div><div class="cc-hl" id="hl-assets">—</div><div style="height:190px"><canvas id="ch-assets"></canvas></div><div class="chart-legend" id="leg-assets"></div></div>
+      <div class="chart-card"><div class="cc-label">FCF vs Capex</div><div class="cc-hl" id="hl-capex">—</div><div style="height:190px"><canvas id="ch-capex"></canvas></div><div class="chart-legend" id="leg-capex"></div></div>
+    </div>
+  </div>
+  <div class="panel" id="panel-valuacion">
+    <div class="kpi-grid" id="kpi-val"></div>
+    <div class="sec-hdr"><div class="sec-dot"></div><div class="sec-title">Multiples vs Historico</div><div class="sec-line"></div></div>
+    <div class="mult-grid" id="mult-grid"></div>
+    <div class="charts-row">
+      <div class="chart-card"><div class="cc-label">P/E y EV/EBITDA</div><div class="cc-hl" id="hl-pe">—</div><div style="height:200px"><canvas id="ch-pe"></canvas></div><div class="chart-legend" id="leg-pe"></div></div>
+      <div class="chart-card"><div class="cc-label">P/S y P/FCF</div><div class="cc-hl" id="hl-ps">—</div><div style="height:200px"><canvas id="ch-ps"></canvas></div><div class="chart-legend" id="leg-ps"></div></div>
+    </div>
+    <div class="charts-row">
+      <div class="chart-card"><div class="cc-label">Market Cap y EV ($B)</div><div class="cc-hl" id="hl-mktcap">—</div><div style="height:190px"><canvas id="ch-mktcap"></canvas></div><div class="chart-legend" id="leg-mktcap"></div></div>
+      <div class="chart-card"><div class="cc-label">Precio Historico</div><div class="cc-hl" id="hl-price">—</div><div style="height:190px"><canvas id="ch-price"></canvas></div></div>
+    </div>
+  </div>
+  <div class="panel" id="panel-ranking">
+    <div class="rank-panel">
+      <div class="rank-header">
+        <div><div style="font-size:13px;font-weight:700">⭐ En cual de estas 13 invertir?</div><div style="font-size:10px;color:var(--muted)">Claude analiza todas con datos reales de StockAnalysis</div></div>
+        <button class="rank-btn" id="rank-btn" onclick="runRanking()">✦ Generar Ranking</button>
+      </div>
+      <div id="rank-content" style="text-align:center;padding:2rem;color:var(--muted);font-size:12px;">Presiona <strong style="color:var(--cyan)">Generar Ranking</strong> para el analisis comparativo.</div>
+    </div>
+  </div>
+  <div class="disclaimer">⚠️ <strong>Disclaimer:</strong> Este dashboard es exclusivamente para fines educativos e informativos. No constituye asesoramiento financiero ni recomendacion de inversion. Los datos pueden contener errores. Consulta a un asesor financiero certificado antes de tomar decisiones de inversion. Invertir conlleva riesgos, incluyendo la posible perdida del capital invertido.</div>
+  <div class="footer">Nico Aronne AP 1613 · Datos: StockAnalysis.com · 13 empresas verificadas · Dashboard con Claude AI · May-2026</div>
+</div>
+<script>
+const COMPANIES = {
+  CRWD:{
+    name:'CrowdStrike Holdings',exchange:'NASDAQ',sector:'Cybersecurity · Cloud SaaS',
+    description:'Lider global en ciberseguridad nativa en la nube. Plataforma Falcon con 28+ modulos. Modelo 100% SaaS, NRR >120%. FY2026 (ene-26): revenue $4,812M (+21.7%), FCF $1,310M (27.2% margen), ARR $4.24B (+23%).',
+    founded:'2011',hq:'Austin, TX',employees:'~10,300',marketcap:'$111.8B',
+    last_price:'$527.77',last_chg:'+22.05 (4.36%) · 8-May-26',last_chg_pos:true,
+    tags:['Cybersecurity','Cloud Native','SaaS','AI/ML','ARR'],tagColors:['cyan','violet','green','cyan','amber'],
+    years:['FY22','FY23','FY24','FY25','FY26'],
+    revenue:[1452,2241,3056,3954,4812],revenue_g:[0.660,0.544,0.363,0.294,0.217],
+    gross_profit:[1068,1640,2297,2963,3593],gross_margin:[0.7360,0.7317,0.7516,0.7496,0.7467],
+    op_income:[-143,-190,-19,-116,-293],op_margin:[-0.0982,-0.0848,-0.0063,-0.0294,-0.0610],
+    net_income:[-235,-183,72,-15,-163],profit_margin:[-0.1601,-0.0813,0.0240,-0.0032,-0.0335],
+    ebitda:[-74,-96,126,98,-12],ebitda_margin:[-0.0508,-0.0430,0.0413,0.0247,-0.0025],
+    eps_diluted:[-1.03,-0.79,0.30,-0.06,-0.65],eps_g:[null,null,null,null,null],
+    ocf:[357,941,1166,1382,1612],fcf:[304,706,990,1127,1310],fcf_margin:[0.3187,0.3150,0.3239,0.2850,0.2723],capex:[-53,-235,-177,-255,-302],
+    cash:[1997,2455,3475,4323,5230],total_debt:[775,784,793,789,820],net_cash:[1222,1922,2682,3534,4410],total_assets:[3618,5027,6647,8702,11087],equity:[1038,1487,2337,3319,4473],
+    pe:[null,null,null,null,null],ps:[28.71,11.14,23.15,24.96,23.24],pb:[40.63,17.05,30.71,30.09,25.25],
+    ev_ebitda:[null,null,null,null,null],ev_sales:[27.87,10.28,22.28,24.07,22.33],pfcf:[90.08,35.35,71.48,87.56,85.36],
+    roe:[-0.2434,-0.1444,0.0384,-0.0044,-0.0414],roa:[-0.0652,-0.0501,-0.0023,0.0033,-0.0376],roic:[-0.2005,-0.1292,-0.0056,0.0077,-0.0835],
+    mktcap:[41676,24958,70746,98670,111836],ev:[40456,23047,68083,95162,107452],price_hist:[180.64,105.90,292.50,398.07,441.41],
+    facts:{'FY Ending':'Enero 31','Rev FY26':'$4,812M (+21.7%)','FCF FY26':'$1,310M (27.2%)','ARR':'$4.24B (+23%)','NRR':'>120%'},
+  },
+  ANET:{
+    name:'Arista Networks',exchange:'NYSE',sector:'Cloud Networking · Data Center',
+    description:'Lider en redes para data centers. EOS diferenciado. Clientes: Microsoft, Meta, Google. FY2025: $9,006M (+28.6%), NI $3,511M (39%), FCF $4,252M (47.2%). Q1-26: EPS $0.87 beat. Guidance 2026: ~$11.5B.',
+    founded:'2004',hq:'Santa Clara, CA',employees:'~4,500',marketcap:'$178.5B',
+    last_price:'$140.46',last_chg:'-1.29 (-0.91%) · 8-May-26',last_chg_pos:false,
+    tags:['Cloud Networking','Data Center','AI Infrastructure','400G/800G'],tagColors:['cyan','violet','green','amber'],
+    years:['2020','2021','2022','2023','2024','2025'],
+    revenue:[2318,2948,4381,5860,7003,9006],revenue_g:[-0.0387,0.2721,0.4862,0.3376,0.1950,0.2860],
+    gross_profit:[1482,1881,2676,3630,4491,5769],gross_margin:[0.6394,0.6380,0.6107,0.6195,0.6413,0.6406],
+    op_income:[700,925,1527,2257,2945,3856],op_margin:[0.3019,0.3137,0.3486,0.3852,0.4205,0.4282],
+    net_income:[635,841,1352,2087,2852,3511],profit_margin:[0.2738,0.2852,0.3087,0.3562,0.4073,0.3899],
+    ebitda:[735,975,1590,2328,3007,3929],ebitda_margin:[0.3171,0.3308,0.3629,0.3972,0.4293,0.4362],
+    eps_diluted:[0.500,0.658,1.070,1.650,2.230,2.750],eps_g:[null,0.3150,0.6274,0.5421,0.3515,0.2332],
+    ocf:[735,1016,493,2034,3708,4372],fcf:[720,951,448,2000,3676,4252],fcf_margin:[0.3106,0.3226,0.1023,0.3412,0.5249,0.4722],capex:[-15,-65,-45,-34,-32,-119],
+    cash:[2873,3408,3024,5008,8304,10743],total_debt:[72,57,0,0,0,0],net_cash:[2800,3352,3024,5008,8304,10743],total_assets:[4739,5734,6775,9957,14044,19449],equity:[3320,3979,4886,7219,9995,12371],
+    pe:[36.32,54.66,28.36,35.68,49.57,47.65],ps:[9.55,15.00,8.50,12.55,19.91,18.28],pb:[6.67,11.12,7.62,10.19,13.95,13.31],
+    ev_ebitda:[26.31,41.93,21.53,29.44,43.61,39.17],ev_sales:[8.34,13.87,7.81,11.69,18.72,17.09],pfcf:[30.75,46.51,83.10,36.78,37.92,38.72],
+    roe:[0.2042,0.2304,0.3051,0.3449,0.3314,0.3140],roa:[0.1347,0.1595,0.2087,0.2325,0.2143,0.1903],roic:[0.4266,0.4793,0.5097,0.5306,0.5697,0.5097],
+    mktcap:[22133,44232,37244,73540,139415,164639],ev:[19333,40880,34221,68532,131112,153896],price_hist:[18.16,35.94,30.34,58.88,110.53,131.03],
+    facts:{'FY Ending':'Dic 31','Rev 2025':'$9,006M (+28.6%)','NI 2025':'$3,511M (39%)','FCF 2025':'$4,252M (47.2%)','P/E TTM':'47.65x'},
+  },
+  O:{
+    name:'Realty Income Corp.',exchange:'NYSE',sector:'REIT · Triple Net Lease',
+    description:'REIT triple net lease. 15,600+ propiedades, 19 paises. FY2024: $5,271M revenue (+29.2%), EBITDA $4,194M (79.6%). Dividendo mensual 664 meses consecutivos. S&P 500 Dividend Aristocrat. FCF negativo tipico de REITs por capex de adquisiciones.',
+    founded:'1969',hq:'San Diego, CA',employees:'~500',marketcap:'~$52.6B',
+    last_price:'$61.92',last_chg:'+0.53 (0.86%) · 8-May-26',last_chg_pos:true,
+    tags:['REIT','Triple Net Lease','Monthly Dividend','Dividend Aristocrat'],tagColors:['green','amber','cyan','violet'],
+    years:['2020','2021','2022','2023','2024','2025'],
+    revenue:[1647,2080,3344,4079,5271,5749],revenue_g:[0.1068,0.2631,0.6072,0.2199,0.2923,0.0907],
+    gross_profit:[1542,1947,3117,3762,4893,5321],gross_margin:[0.9365,0.9358,0.9323,0.9223,0.9284,0.9254],
+    op_income:[645,746,1269,1621,1799,2098],op_margin:[0.3916,0.3584,0.3794,0.3973,0.3413,0.3650],
+    net_income:[395,359,869,872,848,1059],profit_margin:[0.2397,0.1724,0.2597,0.2138,0.1609,0.1842],
+    ebitda:[1322,1644,2939,3516,4194,4622],ebitda_margin:[0.8027,0.7900,0.8790,0.8620,0.7957,0.8040],
+    eps_diluted:[1.14,0.87,1.42,1.26,0.98,1.17],eps_g:[null,-0.2368,0.6322,-0.1127,-0.2222,0.1939],
+    ocf:[1116,1322,2564,2959,3573,3995],fcf:[-1176,-5010,-6418,-5164,189,-785],fcf_margin:[-0.7142,-2.4081,-1.9195,-1.2659,0.0359,-0.1365],capex:[-2292,-6332,-8982,-8122,-3384,-4780],
+    cash:[824,259,171,233,445,435],total_debt:[9139,16751,19490,22927,27863,30289],net_cash:[-8314,-16492,-19319,-22694,-27418,-29854],total_assets:[20740,43138,49673,57779,68835,72796],equity:[11018,25129,28843,33107,39052,40124],
+    pe:[52.81,82.29,44.67,45.57,54.50,48.18],ps:[13.21,20.35,12.53,10.59,9.03,9.16],pb:[1.97,1.69,1.46,1.31,1.23,1.34],
+    ev_ebitda:[22.77,35.84,20.87,18.79,17.94,17.99],ev_sales:[18.27,28.31,18.34,16.20,14.27,14.47],pfcf:[null,null,null,null,251.37,null],
+    roe:[0.0381,0.0200,0.0323,0.0283,0.0240,0.0270],roa:[0.0317,0.0215,0.0260,0.0285,0.0264,0.0274],roic:[0.0327,0.0220,0.0263,0.0289,0.0268,0.0280],
+    mktcap:[21751,42328,41883,43206,47616,52648],ev:[30097,58898,61332,66066,75244,83187],price_hist:[60.20,71.59,63.43,57.42,53.41,56.37],
+    facts:{'FY Ending':'Dic 31','Rev FY24':'$5,271M (+29.2%)','EBITDA FY24':'$4,194M','Propiedades':'15,600+','Div Yield':'~5.7%'},
+  },
+  GLNG:{
+    name:'Golar LNG',exchange:'NASDAQ',sector:'LNG · FLNG Infrastructure',
+    description:'Operador de FLNG. FY2025: revenue $393.5M (+51.1%), NI $65.7M, EBITDA $149M (37.9%). Hilli Episeyo: primera FLNG comercial del mundo. Backlog >$3B en contratos long-term take-or-pay.',
+    founded:'1946',hq:'Hamilton, Bermuda',employees:'~400',marketcap:'~$3.8B',
+    last_price:'$55.70',last_chg:'+1.20 (2.20%) · 8-May-26',last_chg_pos:true,
+    tags:['LNG','FLNG','Midstream','Long-term Contracts'],tagColors:['amber','cyan','violet','green'],
+    years:['2021','2022','2023','2024','2025'],
+    revenue:[260,268,298,260,394],revenue_g:[-0.0043,0.0287,0.1146,-0.1275,0.5114],
+    gross_profit:[195,192,205,139,234],gross_margin:[0.7501,0.7190,0.6873,0.5330,0.5937],
+    op_income:[307,524,16,62,100],op_margin:[1.1784,1.9575,0.0529,0.2388,0.2534],
+    net_income:[414,788,-47,51,66],profit_margin:[2.1540,3.5074,-0.0096,0.3103,0.2861],
+    ebitda:[362,585,66,116,149],ebitda_margin:[1.3911,2.1832,0.2215,0.4444,0.3786],
+    eps_diluted:[-1.60,8.04,-0.44,0.48,0.60],eps_g:[null,null,null,null,0.25],
+    ocf:[120,279,135,318,471],fcf:[null,12,-191,-120,-412],fcf_margin:[null,0.0434,-0.6387,-0.4621,-1.0479],capex:[-214,-267,-325,-439,-883],
+    cash:[232,879,679,566,1151],total_debt:[1623,1189,1217,1452,2758],net_cash:[1855,2068,1896,2019,3909],total_assets:[4948,4280,4084,4368,5326],equity:[-2178,-2900,-2602,-2369,-2068],
+    pe:[null,2.83,null,88.17,62.02],ps:[5.15,9.12,8.06,16.99,9.58],pb:[null,null,null,null,null],
+    ev_ebitda:[null,0.55,4.79,22.22,null],ev_sales:[null,1.19,1.06,9.88,null],pfcf:[null,210.0,null,null,null],
+    roe:[null,-0.370,0.001,-0.033,-0.051],roa:[0.0661,0.1136,0.0038,0.0147,0.0198],roic:[0.0677,0.1279,0.0045,0.0163,0.0227],
+    mktcap:[1341,2443,2405,4424,3770],ev:[-259,320,317,2571,-63],price_hist:[12.39,22.79,22.99,42.32,37.21],
+    facts:{'FY Ending':'Dic 31','Rev FY25':'$393.5M (+51.1%)','NI FY25':'$65.7M','EBITDA FY25':'$149M','Backlog':'>$3B'},
+  },
+  SNDK:{
+    name:'SanDisk Corp.',exchange:'NASDAQ',sector:'Flash Storage · NAND',
+    description:'Spinoff de Western Digital (2025). Lider en NAND flash. TTM: $13,184M (+82.8%) impulsado por superciclo NAND/IA. Segmentos: Datacenter ($2.4B TTM), Edge ($7.8B), Consumer ($3.0B). MktCap ~$231B tras rally masivo.',
+    founded:'1988 (Spinoff 2025)',hq:'Milpitas, CA',employees:'~7,000',marketcap:'~$231B',
+    last_price:'$1,562',last_chg:'+0.00 · TTM',last_chg_pos:true,
+    tags:['NAND Flash','SSD','AI Storage','Semiconductors'],tagColors:['cyan','violet','amber','green'],
+    years:['FY22','FY23','FY24','FY25','TTM'],
+    revenue:[9754,6086,6663,7355,13184],revenue_g:[null,-0.3760,0.0948,0.1039,0.8276],
+    gross_profit:[3244,430,1072,2212,7388],gross_margin:[0.3326,0.0707,0.1609,0.3007,0.5604],
+    op_income:[1200,-2035,-468,-1377,5370],op_margin:[0.1230,-0.3344,-0.0702,-0.1872,0.4073],
+    net_income:[1064,-2143,-672,-1641,4507],profit_margin:[0.1091,-0.3521,-0.1009,-0.2231,0.3419],
+    ebitda:[1725,-1587,-244,-1214,5518],ebitda_margin:[0.1769,-0.2608,-0.0366,-0.1651,0.4185],
+    eps_diluted:[null,-14.78,-4.63,-11.32,28.77],eps_g:[null,null,null,null,null],
+    ocf:[1151,-713,-309,84,4639],fcf:[741,-932,-475,-120,4460],fcf_margin:[0.0760,-0.1531,-0.0713,-0.0163,0.3383],capex:[-410,-219,-166,-204,-179],
+    cash:[335,292,328,1481,3735],total_debt:[950,919,814,1849,0],net_cash:[-615,-627,-486,-368,3735],total_assets:[15761,13820,13506,12985,17075],equity:[25954,22878,11082,9216,13777],
+    pe:[null,null,null,null,52.59],ps:[null,null,null,0.94,17.55],pb:[null,null,null,0.75,16.78],
+    ev_ebitda:[null,null,null,null,40.45],ev_sales:[null,null,null,0.98,17.28],pfcf:[null,null,null,null,51.88],
+    roe:[0.041,-0.088,-0.040,-0.162,0.376],roa:[0.0656,-0.1473,-0.0458,-0.1153,0.3125],roic:[0.0746,-0.1667,-0.0518,-0.1389,0.4357],
+    mktcap:[0,0,0,6884,231367],ev:[0,0,0,7232,227839],price_hist:[null,null,null,47.15,1562],
+    facts:{'FY Ending':'Junio/Jul','Rev TTM':'$13,184M (+82.8%)','MktCap':'~$231B','Segmentos':'Datacenter/Edge/Consumer','Origen':'Spinoff WD 2025'},
+  },
+  NBIS:{
+    name:'Nebius Group',exchange:'NASDAQ',sector:'AI Cloud · GPU Infrastructure',
+    description:'Nebius (spinoff Yandex 2024) opera GPU clusters H100/H200 para AI cloud. NVIDIA invirtio $2B. Segmentos: Nebius AI cloud, Avride (autonomous driving), TripleTen (edtech). FY2025: $529.8M (+479%!). MktCap ~$45B. Alto riesgo/alto potencial.',
+    founded:'2024 (ex-Yandex)',hq:'Amsterdam, Holanda',employees:'~3,000',marketcap:'~$45B',
+    last_price:'$177.05',last_chg:'+5.30 (3.09%) · 8-May-26',last_chg_pos:true,
+    tags:['AI Cloud','GPU Clusters','H100/H200','European Cloud','High Growth'],tagColors:['cyan','violet','green','amber','pink'],
+    years:['2022','2023','2024','2025'],
+    revenue:[14,10,92,530],revenue_g:[null,-0.2741,8.3367,4.7902],
+    gross_profit:[-15,-10,48,364],gross_margin:[-1.1037,-1.0,0.5224,0.6863],
+    op_income:[-158,-286,-400,-612],op_margin:[-11.7037,-28.6,null,null],
+    net_income:[746,-299,-641,83],profit_margin:[null,null,null,0.1920],
+    ebitda:[-129,-249,-314,-141],ebitda_margin:[null,null,null,-0.2669],
+    eps_diluted:[1.59,0.65,-2.28,0.33],eps_g:[null,-0.5912,null,null],
+    ocf:[697,830,246,385],fcf:[682,747,-562,-3681],fcf_margin:[null,null,null,null],capex:[-15,-83,-807,-4066],
+    cash:[1127,1127,2435,3678],total_debt:[1220,17,36,4888],net_cash:[-93,105,2398,-1210],total_assets:[8362,8755,3549,12431],equity:[4289,4585,3254,4594],
+    pe:[null,null,null,253.65],ps:[null,null,71.37,39.98],pb:[null,null,2.01,4.61],
+    ev_ebitda:[null,null,null,null],ev_sales:[null,null,45.09,42.21],pfcf:[null,null,null,null],
+    roe:[0.212,null,-0.303,0.024],roa:[-0.021,-0.034,-0.065,-0.066],roic:[-0.034,-0.042,-0.084,-0.125],
+    mktcap:[0,0,6530,21179],ev:[0,0,4126,22364],price_hist:[null,null,27.7,83.71],
+    facts:{'FY Ending':'Dic 31','Rev FY25':'$529.8M (+479%)','Inv. NVIDIA':'$2B','Segmentos':'Nebius AI / Avride / TripleTen','MktCap':'~$45B'},
+  },
+  HIMS:{
+    name:'Hims & Hers Health',exchange:'NYSE',sector:'Digital Health · Telehealth DTC',
+    description:'Hims & Hers FY2025: $2,348M (+59% YoY), NI $128M, EBITDA $160M. 2.25M+ suscriptores. Modelo DTC con farmacia propia y GLP-1/semaglutida. Guidance FY2026: revenue aun no reportado. Online revenue = 98% del total.',
+    founded:'2017',hq:'San Francisco, CA',employees:'~900',marketcap:'~$7.4B',
+    last_price:'$28.27',last_chg:'+1.80 (6.80%) · 8-May-26',last_chg_pos:true,
+    tags:['Telehealth','DTC','Subscription Health','GLP-1','Wellness'],tagColors:['pink','cyan','violet','green','amber'],
+    years:['2020','2021','2022','2023','2024','2025'],
+    revenue:[149,272,527,872,1477,2348],revenue_g:[0.8019,0.8277,0.9381,0.6549,0.6933,0.5900],
+    gross_profit:[109,204,409,715,1173,1733],gross_margin:[0.7358,0.7522,0.7757,0.8199,0.7945,0.7383],
+    op_income:[-15,-115,-69,-29,62,106],op_margin:[-0.1018,-0.4231,-0.1304,-0.0338,0.0419,0.0450],
+    net_income:[-18,-108,-66,-24,126,128],profit_margin:[-0.1218,-0.3960,-0.1246,-0.0270,0.0854,0.0547],
+    ebitda:[-14,-111,-61,-20,79,160],ebitda_margin:[-0.0947,-0.4081,-0.1162,-0.0229,0.0535,0.0682],
+    eps_diluted:[-0.51,-0.58,-0.32,-0.11,0.53,0.51],eps_g:[null,null,null,null,null,-0.0377],
+    ocf:[-2,-34,-27,73,251,300],fcf:[-4,-35,-29,56,209,74],fcf_margin:[-0.0283,-0.1296,-0.0555,0.0645,0.1418,0.0315],capex:[-2,-1,-3,-17,-42,-226],
+    cash:[27,72,47,97,221,229],total_debt:[0,5,5,10,11,1121],net_cash:[100,242,174,211,289,-543],total_assets:[119,421,366,441,708,2155],equity:[-147,335,312,344,477,541],
+    pe:[null,null,null,null,45.62,63.67],ps:[5.20,4.93,2.54,2.18,3.62,3.14],pb:[null,4.01,4.29,5.52,11.20,13.64],
+    ev_ebitda:[null,null,null,null,63.92,49.45],ev_sales:[9.57,4.04,2.20,1.94,3.42,3.37],pfcf:[null,null,null,33.77,25.50,99.76],
+    roe:[null,null,-0.203,-0.072,0.307,0.252],roa:[-0.094,-0.415,-0.175,-0.080,0.189,0.076],roic:[-0.161,-1.522,-0.485,-0.222,0.529,0.135],
+    mktcap:[773,1341,1336,1900,5340,7379],ev:[1423,1098,1160,1688,5049,7917],price_hist:[14.60,6.55,6.41,8.90,24.18,32.47],
+    facts:{'FY Ending':'Dic 31','Rev FY25':'$2,348M (+59%)','NI FY25':'$128M','EBITDA FY25':'$160M','Online Rev':'98% del total'},
+  },
+  ONDS:{
+    name:'Ondas Inc.',exchange:'NASDAQ',sector:'Defense Drones · Autonomous Systems',
+    description:'Ondas (renombrada Ene-2026) se transformo: FY2025 revenue $50.7M (+605% YoY) via 5 adquisiciones. MktCap ~$4.4B. Guidance 2026: $375M+ (+640%!). Socia Palantir. Levanto $1B en May-2026. Counter-UAS, ISR, defensa autonoma. Alto riesgo especulativo.',
+    founded:'2018',hq:'West Palm Beach, FL',employees:'~600',marketcap:'~$4.4B',
+    last_price:'$9.06',last_chg:'+0.45 (5.23%) · 8-May-26',last_chg_pos:true,
+    tags:['Defense Drones','Counter-UAS','AI Defense','Palantir Partner','Alto Riesgo'],tagColors:['cyan','amber','violet','pink','pink'],
+    years:['2021','2022','2023','2024','2025'],
+    revenue:[2.9,2.1,15.7,7.2,50.7],revenue_g:[0.3434,-0.2687,6.3813,-0.5416,6.0528],
+    gross_profit:[1.1,1.1,6.4,0.3,20.2],gross_margin:[0.3770,0.5218,0.4067,0.0480,0.3973],
+    op_income:[-17.9,-69.4,-39.7,-34.6,-58.4],op_margin:[-6.183,-33.05,-2.528,-4.806,-1.151],
+    net_income:[-15.0,-73.2,-46.4,-42.4,-137.2],profit_margin:[-5.169,-34.85,-2.957,-5.893,-2.709],
+    ebitda:[-16.5,-65.4,-34.7,-29.8,-51.6],ebitda_margin:[-5.663,-31.14,-2.211,-4.141,-1.018],
+    eps_diluted:[-0.44,-1.73,-0.88,-0.61,-0.62],eps_g:[null,null,null,null,null],
+    ocf:[-17,-38,-34,-33,-39],fcf:[-18,-41,-34,-35,-41],fcf_margin:[-6.13,-19.21,-2.168,-4.880,-0.809],capex:[-1,-3,0,-2,-2],
+    cash:[41,30,15,0,22],total_debt:[1,33,35,49,9],net_cash:[40,-4,-20,-49,13],total_assets:[117,98,92,110,1133],equity:[112,58,45,36,438],
+    pe:[null,null,null,null,null],ps:[94.62,32.99,6.04,33.16,73.25],pb:[null,null,null,14.38,8.49],
+    ev_ebitda:[null,null,null,null,null],ev_sales:[80.77,26.96,6.41,38.06,73.58],pfcf:[null,null,null,null,null],
+    roe:[-0.236,-0.859,-0.868,-0.938,-0.526],roa:[-0.206,-0.645,-0.418,-0.343,-0.093],roic:[-0.428,-1.029,-0.610,-0.416,-0.100],
+    mktcap:[248,70,95,239,3716],ev:[235,57,101,274,3733],price_hist:[6.71,1.59,1.53,2.56,9.76],
+    facts:{'FY Ending':'Dic 31','Rev FY25':'$50.7M (+605%)','Net Loss FY25':'-$137M','MktCap':'~$4.4B','Guidance 2026':'$375M+'},
+  },
+  COP:{
+    name:'ConocoPhillips',exchange:'NYSE',sector:'Oil & Gas E&P',
+    description:'Mayor E&P independiente del mundo. FY2025: $58,944M rev (+7.7%), NI $7,988M, FCF $7,243M (12.3% margen). Integro Marathon Oil (2024). Produccion ~2.1 Mboe/d. Costo supply <$40/bbl WTI. Devuelve ~45% del CFO a accionistas.',
+    founded:'2002',hq:'Houston, TX',employees:'~13,000',marketcap:'~$117B',
+    last_price:'$113.87',last_chg:'+1.20 (1.06%) · 8-May-26',last_chg_pos:true,
+    tags:['E&P','Oil & Gas','Permian','Low Cost Supply','Capital Return'],tagColors:['amber','cyan','violet','green','cyan'],
+    years:['2021','2022','2023','2024','2025'],
+    revenue:[45828,78494,56141,54745,58944],revenue_g:[1.4397,-0.2848,-0.0249,0.0767,0.0767],
+    gross_profit:[21976,37517,26473,25982,26288],gross_margin:[0.4795,0.4780,0.4715,0.4746,0.4460],
+    op_income:[11053,25271,14727,12197,10918],op_margin:[0.2412,0.3219,0.2623,0.2228,0.1852],
+    net_income:[8079,18680,10957,9245,7988],profit_margin:[0.1763,0.2380,0.1952,0.1689,0.1355],
+    ebitda:[18261,32775,22997,21796,22418],ebitda_margin:[0.3985,0.4175,0.4096,0.3981,0.3803],
+    eps_diluted:[6.07,14.57,9.06,7.81,6.35],eps_g:[null,1.4003,-0.3782,-0.1380,-0.1869],
+    ocf:[16996,28314,19965,20124,19796],fcf:[11672,18155,8717,8006,7243],fcf_margin:[0.2547,0.2313,0.1553,0.1462,0.1229],capex:[-5324,-10159,-11248,-12118,-12553],
+    cash:[6591,9243,6606,6114,6981],total_debt:[19934,16643,18937,24324,23444],net_cash:[-13343,-7400,-12331,-18210,-16463],total_assets:[90661,93829,95924,122780,121939],equity:[45406,48003,49279,64796,64487],
+    pe:[11.89,8.10,12.81,12.70,14.74],ps:[2.05,1.84,2.44,2.31,1.98],pb:[2.07,3.01,2.77,1.95,1.81],
+    ev_ebitda:[5.88,4.63,6.48,6.64,5.95],ev_sales:[2.34,1.93,2.66,2.64,2.26],pfcf:[8.05,7.95,15.69,15.80,16.14],
+    roe:[0.2147,0.3999,0.2253,0.1621,0.1236],roa:[0.0917,0.1813,0.1044,0.0754,0.0563],roic:[0.1127,0.2277,0.1286,0.0878,0.0651],
+    mktcap:[93996,144415,136742,126528,116913],ev:[107339,151815,149073,144738,133376],price_hist:[72.18,118.00,116.07,99.17,93.61],
+    facts:{'FY Ending':'Dic 31','Rev FY25':'$58,944M (+7.7%)','FCF FY25':'$7,243M (12.3%)','Produccion':'~2.1 Mboe/d','Costo Supply':'<$40/bbl'},
+  },
+  NEE:{
+    name:'NextEra Energy',exchange:'NYSE',sector:'Utilities · Renewable Energy',
+    description:'Mayor utility del mundo por mktcap. FY2024: $24,753M rev, NI $6,946M, EBITDA $13,240M. Opera FPL (Florida P&L) y 35+ GW renovables. FCF positivo $5,145M (20.8%). Pipeline solar >25 GW. Guia EPS +6-8% anual 2025-2027.',
+    founded:'1984',hq:'Juno Beach, FL',employees:'~16,000',marketcap:'~$194B',
+    last_price:'$93.10',last_chg:'+2.10 (2.31%) · 8-May-26',last_chg_pos:true,
+    tags:['Renewable Energy','Solar','Wind','Utility','Dividend Growth'],tagColors:['green','amber','cyan','violet','green'],
+    years:['2020','2021','2022','2023','2024','2025'],
+    revenue:[17997,17069,20956,28114,24753,27412],revenue_g:[-0.0516,-0.0516,0.2277,0.3416,-0.1196,0.1074],
+    gross_profit:[10524,8561,10139,17976,14867,17069],gross_margin:[0.5848,0.5016,0.4838,0.6394,0.6006,0.6227],
+    op_income:[5116,2913,4081,10237,7479,8280],op_margin:[0.2843,0.1707,0.1947,0.3641,0.3021,0.3021],
+    net_income:[2919,3573,4147,7310,6946,6835],profit_margin:[0.1316,0.1656,0.1549,0.2234,0.2302,0.1945],
+    ebitda:[9431,7127,8871,16388,13240,15221],ebitda_margin:[0.5240,0.4175,0.4233,0.5829,0.5349,0.5553],
+    eps_diluted:[1.48,1.81,2.10,3.60,3.37,3.30],eps_g:[null,0.2230,0.1602,0.7143,-0.0639,-0.0208],
+    ocf:[7983,7553,8262,11301,13260,12485],fcf:[469,null,-1257,1938,5145,3764],fcf_margin:[0.0261,null,-0.0600,0.0689,0.2079,0.1373],capex:[-7514,-7555,-9519,-9363,-8115,-8721],
+    cash:[1105,639,1601,2690,1487,2812],total_debt:[48091,54827,64966,73211,82333,95619],net_cash:[-46986,-54188,-63365,-70521,-80846,-92807],total_assets:[127684,140912,158935,177489,190144,212721],equity:[36513,45669,49436,59024,60861,66479],
+    pe:[52.13,51.58,39.81,16.87,21.27,24.33],ps:[8.40,10.74,7.93,4.43,5.96,6.10],pb:[4.14,4.93,4.23,2.63,2.94,3.06],
+    ev_ebitda:[21.47,34.26,26.27,12.19,17.45,17.63],ev_sales:[11.25,14.30,11.12,7.11,9.33,9.79],pfcf:[322.42,null,null,103.10,28.66,44.43],
+    roe:[0.0546,0.0624,0.0683,0.1158,0.0951,0.0837],roa:[0.0409,0.0193,0.0231,0.0525,0.0384,0.0484],roic:[0.0433,0.0206,0.0249,0.0569,0.0413,0.0518],
+    mktcap:[151214,183266,166113,124638,147466,167223],ev:[202478,244136,233052,199814,231011,268401],price_hist:[77.15,93.36,83.60,60.74,71.69,80.28],
+    facts:{'FY Ending':'Dic 31','Rev FY24':'$24,753M','NI FY24':'$6,946M','FCF FY24':'$5,145M (20.8%)','Cap. Renov.':'35+ GW'},
+  },
+  MP:{
+    name:'MP Materials',exchange:'NYSE',sector:'Rare Earths · Critical Minerals',
+    description:'Unica mina de tierras raras activa en EE.UU. FY2024: $203.9M rev (-19.6%), NI -$65.4M. DoD invirtio $400M (2025). Apple firmo suministro NdPr. Integracion vertical hacia imanes permanentes. Accion subio de $15 a $67+ por estos catalizadores.',
+    founded:'2017',hq:'Las Vegas, NV',employees:'~681',marketcap:'~$12B',
+    last_price:'$67.43',last_chg:'+3.20 (4.98%) · 8-May-26',last_chg_pos:true,
+    tags:['Rare Earths','NdPr','EV Supply Chain','DoD Strategic','USA Critical'],tagColors:['green','cyan','amber','violet','cyan'],
+    years:['2021','2022','2023','2024'],
+    revenue:[332,528,253,204],revenue_g:[1.4715,0.5891,-0.5195,-0.1957],
+    gross_profit:[256,435,161,11],gross_margin:[0.7703,0.8252,0.6342,0.0553],
+    op_income:[165,327,-18,-169],op_margin:[0.4981,0.6207,-0.0699,-0.8311],
+    net_income:[135,289,24,-65],profit_margin:[0.4068,0.5479,0.0959,-0.3209],
+    ebitda:[190,346,38,-91],ebitda_margin:[0.5716,0.6555,0.1499,-0.4482],
+    eps_diluted:[0.73,1.52,0.14,-0.57],eps_g:[null,1.0822,-0.9079,null],
+    ocf:[102,344,63,13],fcf:[-22,17,-199,-173],fcf_margin:[-0.0660,0.0321,-0.7860,-0.8490],capex:[-124,-327,-262,-186],
+    cash:[1179,1182,998,851],total_debt:[691,678,689,909],net_cash:[488,504,309,-58],total_assets:[1890,2238,2336,2334],equity:[1009,1313,1366,1055],
+    pe:[62.22,15.97,141.79,null],ps:[24.33,8.18,13.95,12.49],pb:[8.01,3.29,2.59,2.41],
+    ev_ebitda:[39.91,11.02,84.91,null],ev_sales:[22.81,7.22,12.73,12.77],pfcf:[null,null,null,null],
+    roe:[0.1450,0.2490,0.0182,-0.0540],roa:[0.0940,0.1344,-0.0057,-0.0509],roic:[0.2298,0.3346,-0.0117,-0.0903],
+    mktcap:[8076,4315,3535,2546],ev:[7572,3811,3226,2604],price_hist:[45.42,24.28,19.85,15.60],
+    facts:{'FY Ending':'Dic 31','Rev FY24':'$203.9M (-19.6%)','NI FY24':'-$65.4M','DoD':'$400M inversion 2025','Apple':'Acuerdo NdPr'},
+  },
+  CCJ:{
+    name:'Cameco Corp.',exchange:'NYSE',sector:'Uranium · Nuclear Energy',
+    description:'Mayor productor de uranio del mundo occidental. FY2025: $3,482M rev (+11%), NI $590M (+243%!), FCF $1,075M (31%). Posee 49% Westinghouse. Superciclo uranio por IA data centers + decarbonizacion. P/E actual 93x. Strong Buy consensus.',
+    founded:'1988',hq:'Saskatoon, Canada',employees:'~2,900',marketcap:'~$40B',
+    last_price:'$91.97',last_chg:'+2.30 (2.56%) · 8-May-26',last_chg_pos:true,
+    tags:['Uranium','Nuclear','Energy Transition','AI Data Centers','Long-term Contracts'],tagColors:['amber','cyan','violet','green','cyan'],
+    years:['2021','2022','2023','2024','2025'],
+    revenue:[1475,1868,2588,3136,3482],revenue_g:[-0.1806,0.2665,0.3853,0.2118,0.1104],
+    gross_profit:[192,411,782,1063,1263],gross_margin:[0.1304,0.2198,0.3022,0.3391,0.3628],
+    op_income:[-136,15,283,510,618],op_margin:[-0.0923,0.0081,0.1093,0.1627,0.1775],
+    net_income:[-103,89,361,172,590],profit_margin:[-0.0696,0.0478,0.1394,0.0548,0.1693],
+    ebitda:[54,192,503,791,911],ebitda_margin:[0.0367,0.1030,0.1944,0.2522,0.2617],
+    eps_diluted:[-0.26,0.22,0.83,0.39,1.35],eps_g:[null,null,null,-0.5301,2.4615],
+    ocf:[458,305,688,905,1408],fcf:[360,161,535,694,1075],fcf_margin:[0.2437,0.0863,0.2066,0.2212,0.3089],capex:[-99,-143,-154,-212,-333],
+    cash:[1332,2282,567,600,1214],total_debt:[996,997,1784,1281,996],net_cash:[336,-93,-1217,-681,218],total_assets:[7518,8633,9934,9907,10301],equity:[4846,5836,6094,6364,6903],
+    pe:[null,139.50,68.83,189.51,93.10],ps:[7.44,7.11,9.59,10.26,15.72],pb:[2.27,2.14,4.07,5.06,7.93],
+    ev_ebitda:[196.35,62.31,50.72,41.18,59.82],ev_sales:[7.22,6.42,9.86,10.39,15.66],pfcf:[30.54,82.37,46.41,46.38,50.89],
+    roe:[-0.0209,0.0167,0.0605,0.0276,0.0889],roa:[-0.0178,0.0020,0.0226,0.0344,0.0464],roic:[-0.0220,0.0027,0.0284,0.0391,0.0555],
+    mktcap:[4942,9710,18145,23535,40034],ev:[7785,8770,18669,23824,39874],price_hist:[12.39,24.28,50.00,54.06,91.97],
+    facts:{'FY Ending':'Dic 31','Rev FY25':'$3,482M (+11%)','NI FY25':'$590M (+243%!)','FCF FY25':'$1,075M (31%)','Westinghouse':'49%'},
+  },
+  FISV:{
+    name:'Fiserv Inc.',exchange:'NYSE',sector:'Fintech · Payment Processing',
+    description:'Lider global en tecnologia financiera. FY2025: $21,193M rev (+3.6%), NI $3,480M, EPS $6.34 (+18%), FCF $4,299M (20.3%). Opera Clover POS (11M+ negocios). Procesa $2.5T anuales. Crecimiento organico ~4%. Guidance 2026: adj EPS $8.00-8.30.',
+    founded:'1984',hq:'Milwaukee, WI',employees:'~40,000',marketcap:'~$104B',
+    last_price:'$192.41',last_chg:'+4.20 (2.23%) · 8-May-26',last_chg_pos:true,
+    tags:['Fintech','Payment Processing','Clover POS','Banking Tech','SMB'],tagColors:['cyan','violet','amber','green','cyan'],
+    years:['2021','2022','2023','2024','2025'],
+    revenue:[16226,17737,19093,20456,21193],revenue_g:[0.0925,0.0931,0.0765,0.0714,0.0360],
+    gross_profit:[8098,9745,11423,12443,12581],gross_margin:[0.4991,0.5494,0.5983,0.6083,0.5936],
+    op_income:[2288,3740,5014,5879,5818],op_margin:[0.1410,0.2109,0.2626,0.2874,0.2745],
+    net_income:[1334,2530,3068,3131,3480],profit_margin:[0.0803,0.1332,0.1647,0.1889,0.1629],
+    ebitda:[5536,6952,8176,9017,9025],ebitda_margin:[0.3412,0.3919,0.4282,0.4408,0.4258],
+    eps_diluted:[1.99,3.91,4.98,5.38,6.34],eps_g:[0.4214,0.9648,0.2737,0.0803,0.1784],
+    ocf:[4034,4618,5162,6631,6062],fcf:[2874,3139,3774,5062,4299],fcf_margin:[0.1771,0.1770,0.1977,0.2475,0.2029],capex:[-1160,-1479,-1388,-1569,-1763],
+    cash:[835,902,1204,1236,798],total_debt:[21237,21418,23118,24840,28997],net_cash:[-20402,-20516,-21914,-23604,-28199],total_assets:[76249,83869,90890,77176,80133],equity:[31950,31688,30669,27686,25809],
+    pe:[51.58,30.95,30.00,35.22,26.80],ps:[3.50,2.57,4.20,5.40,4.58],pb:[2.27,1.46,2.81,3.50,3.07],
+    ev_ebitda:[24.14,20.87,21.00,20.00,19.40],ev_sales:[8.34,7.65,11.00,10.50,10.00],pfcf:[46.51,20.23,20.00,18.00,14.74],
+    roe:[0.0624,0.0800,0.0920,0.1080,0.1156],roa:[0.0193,0.0231,0.0382,0.0384,0.0463],roic:[0.0433,0.0514,0.0824,0.0980,0.1050],
+    mktcap:[90000,68000,92000,112000,116913],ev:[128000,112000,135000,152000,133376],price_hist:[137.00,99.00,155.00,185.00,192.41],
+    facts:{'FY Ending':'Dic 31','Rev FY25':'$21,193M (+3.6%)','EPS FY25':'$6.34 (+18%)','FCF FY25':'$4,299M (20.3%)','Clover':'11M+ negocios'},
+  },
+};
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+let CUR='CRWD', charts={};
+const COLORS=['#22D3EE','#7C3AED','#F472B6','#34D399','#F59E0B','#60A5FA','#A78BFA','#FB7185'];
+const COLORS_BG=['rgba(34,211,238,.13)','rgba(124,58,237,.13)','rgba(244,114,182,.13)','rgba(52,211,153,.13)','rgba(245,158,11,.13)'];
+const $=id=>document.getElementById(id);
+const fmtM=v=>v==null?'—':v<0?(Math.abs(v)>=1000?`-$${(Math.abs(v)/1000).toFixed(1)}B`:`-$${Math.abs(v).toFixed(0)}M`):(v>=1000?`$${(v/1000).toFixed(1)}B`:`$${v.toFixed(0)}M`);
+const fmtB=v=>v==null?'—':`$${(v/1000).toFixed(1)}B`;
+const P=v=>v==null?'—':`${(v*100).toFixed(1)}%`;
+const X=v=>v==null?'—':`${v.toFixed(1)}x`;
+const avg=a=>{const f=a.filter(v=>v!=null&&!isNaN(v)&&isFinite(v));return f.length?f.reduce((s,v)=>s+v,0)/f.length:null;};
+const gridC='rgba(30,41,59,.7)';
+const MONO="'Courier New',Courier,monospace";
+const tagBg={cyan:'rgba(34,211,238,.08)',violet:'rgba(124,58,237,.08)',green:'rgba(52,211,153,.08)',amber:'rgba(245,158,11,.08)',pink:'rgba(244,114,182,.08)',blue:'rgba(96,165,250,.08)'};
+const tagBdr={cyan:'rgba(34,211,238,.25)',violet:'rgba(124,58,237,.25)',green:'rgba(52,211,153,.25)',amber:'rgba(245,158,11,.25)',pink:'rgba(244,114,182,.25)',blue:'rgba(96,165,250,.25)'};
+const tagClr={cyan:'var(--cyan)',violet:'var(--purple)',green:'var(--good)',amber:'var(--amber)',pink:'var(--pink)',blue:'var(--blue)'};
+
+function baseOpts(cb){return{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:gridC},ticks:{font:{family:MONO,size:9},color:'#94A3B8'}},y:{grid:{color:gridC},ticks:{font:{family:MONO,size:9},color:'#94A3B8',callback:cb}}}};}
+function mkLeg(el,labels,colors){if(!$(el))return;$(el).innerHTML=labels.map((l,i)=>`<span class="cl-item"><span class="cl-dot" style="background:${colors[i]}"></span>${l}</span>`).join('');}
+function dc(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
+function mkKPI(id,cards){$(id).innerHTML=cards.map(c=>`<div class="kpi" style="--accent:${c.a||'var(--cyan)'}"><div class="kpi-lbl">${c.l}</div><div class="kpi-val">${c.v}</div><div class="kpi-sub">${c.s||''}${c.d!=null?`<span class="delta ${c.d>=0?'up':'dn'}">${c.d>=0?'▲':'▼'} ${Math.abs(c.d*100).toFixed(1)}%</span>`:''}</div></div>`).join('');}
+function bars(d,l,c){return{type:'bar',label:l,data:d,backgroundColor:d.map((_,i)=>i===d.length-1?c:c+'33'),borderColor:c,borderWidth:1,borderRadius:3};}
+function lne(d,l,c,dash){return{type:'line',label:l,data:d,borderColor:c,backgroundColor:'transparent',borderWidth:2,pointRadius:3,fill:false,tension:.35,borderDash:dash||[]};}
+function area(d,l,c,bg){return{type:'line',label:l,data:d,borderColor:c,backgroundColor:bg,borderWidth:2,pointRadius:3,fill:true,tension:.35};}
+
+function render(ticker){
+  CUR=ticker;
+  const D=COMPANIES[ticker];
+  const last=D.years.length-1;
+  const ly=D.years[last];
+  $('hdr-tick').textContent=`${ticker} · ${D.exchange}`;
+  $('ai-co-name').textContent=D.name;
+  document.querySelectorAll('.co-btn').forEach(b=>b.classList.toggle('active',b.dataset.ticker===ticker));
+
+  const tags=(D.tags||[]).map((t,i)=>{const cl=D.tagColors?.[i]||'cyan';return`<span class="ptag" style="background:${tagBg[cl]};border:1px solid ${tagBdr[cl]};color:${tagClr[cl]}">${t}</span>`;}).join('');
+  const facts=Object.entries(D.facts||{}).map(([k,v])=>`<div class="fact"><div class="fact-label">${k}</div><div class="fact-val">${v}</div></div>`).join('');
+  const chgColor=D.last_chg_pos?'var(--good)':'var(--bad)';
+  $('profile-card').innerHTML=`
+    <div class="profile-header">
+      <div class="profile-logo">${ticker.slice(0,2)}</div>
+      <div><div class="profile-title">${D.name}</div><div class="profile-ticker">${ticker} · ${D.exchange} · ${D.sector}</div></div>
+      <div style="margin-left:auto;text-align:right;flex-shrink:0">
+        <div style="font-family:var(--mono);font-size:22px;font-weight:700;color:${chgColor}">${D.last_price}</div>
+        <div style="font-size:10px;color:${chgColor};font-family:var(--mono)">${D.last_chg}</div>
+        <div style="font-size:9px;color:var(--muted);margin-top:2px">Mkt Cap: ${D.marketcap}</div>
+      </div>
+    </div>
+    <p class="profile-desc">${D.description}</p>
+    <div class="profile-tags">${tags}</div>
+    <div class="profile-facts">${facts}
+      <div class="fact"><div class="fact-label">Fundada</div><div class="fact-val">${D.founded}</div></div>
+      <div class="fact"><div class="fact-label">HQ</div><div class="fact-val">${D.hq}</div></div>
+      <div class="fact"><div class="fact-label">Empleados</div><div class="fact-val">${D.employees}</div></div>
+    </div>`;
+
+  const cagr=((Math.pow(Math.abs(D.revenue[last]/D.revenue[0]),1/(D.years.length-1))-1)*100).toFixed(1);
+  mkKPI('kpi-negocio',[
+    {l:'Revenue',v:fmtM(D.revenue[last]),s:ly,d:D.revenue_g[last],a:'var(--cyan)'},
+    {l:'Gross Profit',v:fmtM(D.gross_profit[last]),s:`Margen ${P(D.gross_margin[last])}`,a:'var(--violet)'},
+    {l:'EBITDA',v:fmtM(D.ebitda[last]),s:`Margen ${P(D.ebitda_margin[last])}`,d:D.ebitda[last]&&D.ebitda[last-1]?(D.ebitda[last]-D.ebitda[last-1])/Math.abs(D.ebitda[last-1]):null,a:'var(--green)'},
+    {l:'Net Income',v:fmtM(D.net_income[last]),s:`Margen ${P(D.profit_margin[last])}`,d:D.net_income[last]&&D.net_income[last-1]?(D.net_income[last]-D.net_income[last-1])/Math.abs(D.net_income[last-1]):null,a:'var(--blue)'},
+    {l:'EPS Diluido',v:D.eps_diluted[last]!=null?`$${D.eps_diluted[last].toFixed(2)}`:'—',s:ly,d:D.eps_g[last],a:'var(--amber)'},
+    {l:'FCF',v:fmtM(D.fcf[last]),s:`Margen ${P(D.fcf_margin[last])}`,d:D.fcf[last]&&D.fcf[last-1]?(D.fcf[last]-D.fcf[last-1])/Math.abs(D.fcf[last-1]):null,a:'var(--good)'},
+    {l:'Rev CAGR',v:`${cagr}%`,s:`${D.years[0]}→${ly}`,a:'var(--pink)'},
+  ]);
+  mkKPI('kpi-rent',[
+    {l:'FCF',v:fmtM(D.fcf[last]),s:`Margen ${P(D.fcf_margin[last])}`,d:D.fcf[last]&&D.fcf[last-1]?(D.fcf[last]-D.fcf[last-1])/Math.abs(D.fcf[last-1]):null,a:'var(--cyan)'},
+    {l:'Op Cash Flow',v:fmtM(D.ocf[last]),s:ly,a:'var(--violet)'},
+    {l:'EBITDA Margin',v:P(D.ebitda_margin[last]),s:ly,a:'var(--green)'},
+    {l:'FCF Margin',v:P(D.fcf_margin[last]),s:ly,a:'var(--amber)'},
+    {l:'ROE',v:P(D.roe[last]),s:ly,a:'var(--pink)'},
+    {l:'ROIC',v:P(D.roic[last]),s:ly,a:'var(--blue)'},
+  ]);
+  mkKPI('kpi-fin',[
+    {l:'Cash & Equiv.',v:fmtM(D.cash[last]),s:ly,d:D.cash[last]&&D.cash[last-1]?(D.cash[last]-D.cash[last-1])/Math.abs(D.cash[last-1]):null,a:'var(--cyan)'},
+    {l:'Deuda Total',v:fmtM(D.total_debt[last]),s:ly,a:'var(--bad)'},
+    {l:'Net Cash',v:fmtM(D.net_cash[last]),s:D.net_cash[last]>=0?'Posicion positiva':'Deuda neta',d:D.net_cash[last]&&D.net_cash[last-1]?(D.net_cash[last]-D.net_cash[last-1])/Math.abs(D.net_cash[last-1]):null,a:D.net_cash[last]>=0?'var(--good)':'var(--bad)'},
+    {l:'Total Assets',v:fmtM(D.total_assets[last]),s:ly,d:(D.total_assets[last]-D.total_assets[last-1])/D.total_assets[last-1],a:'var(--violet)'},
+    {l:'Equity',v:fmtM(D.equity[last]),s:ly,a:'var(--amber)'},
+    {l:'Deuda/Equity',v:D.total_debt[last]&&D.equity[last]&&D.equity[last]>0?`${(D.total_debt[last]/D.equity[last]).toFixed(2)}x`:'—',s:'Leverage',a:'var(--pink)'},
+    {l:'FCF',v:fmtM(D.fcf[last]),s:`${P(D.fcf_margin[last])} margen`,a:'var(--green)'},
+    {l:'Capex',v:fmtM(D.capex[last]),s:'Inversion activos',a:'var(--muted)'},
+  ]);
+  mkKPI('kpi-val',[
+    {l:'Market Cap',v:fmtB(D.mktcap[last]),s:ly,d:D.mktcap[last]&&D.mktcap[last-1]?(D.mktcap[last]-D.mktcap[last-1])/D.mktcap[last-1]:null,a:'var(--cyan)'},
+    {l:'EV',v:fmtB(D.ev[last]),s:ly,a:'var(--violet)'},
+    {l:'P/E',v:X(D.pe[last]),s:ly,a:'var(--green)'},
+    {l:'EV/EBITDA',v:X(D.ev_ebitda[last]),s:ly,a:'var(--amber)'},
+    {l:'P/FCF',v:X(D.pfcf[last]),s:ly,a:'var(--pink)'},
+    {l:'P/S',v:X(D.ps[last]),s:ly,a:'var(--blue)'},
+  ]);
+
+  const mults=[['P/E',D.pe],['EV/EBITDA',D.ev_ebitda],['P/S',D.ps],['P/B',D.pb],['P/FCF',D.pfcf],['EV/Sales',D.ev_sales]];
+  $('mult-grid').innerHTML=mults.map(([name,arr])=>{
+    const v=arr[last],h=avg(arr);
+    if(!v||!isFinite(v))return`<div class="mult-card"><div class="mult-name">${name}</div><div class="mult-val">—</div><div class="mult-hist" style="color:var(--muted)">N/D</div></div>`;
+    const d=h?((v-h)/h*100).toFixed(1):null;
+    return`<div class="mult-card"><div class="mult-name">${name}</div><div class="mult-val">${v.toFixed(1)}x</div><div class="mult-hist" style="color:${d&&v>h?'var(--bad)':'var(--good)'}">${d?(v>h?'▲':'▼')+' '+Math.abs(d)+'% vs hist ('+(h?h.toFixed(1)+'x':'—')+')':'Sin hist.'}</div></div>`;
+  }).join('');
+
+  buildCharts(D);
+}
+
+function buildCharts(D){
+  const y=D.years,last=y.length-1;
+  const C0=COLORS[0],C1=COLORS[1],C2=COLORS[2],C3=COLORS[3];
+  const revCb=v=>Math.abs(v)>=1000?(v<0?`-$${(Math.abs(v)/1000).toFixed(0)}B`:`$${(v/1000).toFixed(0)}B`):(v<0?`-$${Math.abs(v).toFixed(0)}M`:`$${v.toFixed(0)}M`);
+
+  $('hl-rev').textContent=fmtM(D.revenue[last])+' Revenue';
+  $('hl-revg').textContent=P(D.revenue_g[last])+' YoY';
+  $('hl-ebitda').textContent=fmtM(D.ebitda[last])+' EBITDA';
+  $('hl-ni').textContent=fmtM(D.net_income[last])+' NI';
+  $('hl-margins').textContent=P(D.op_margin[last])+' Op Margin';
+  $('hl-fcf').textContent=fmtM(D.fcf[last])+' FCF';
+  $('hl-returns').textContent='ROE '+P(D.roe[last]);
+  $('hl-fcfm').textContent=P(D.fcf_margin[last])+' FCF Margin';
+  $('hl-pe').textContent='P/E '+X(D.pe[last]);
+  $('hl-ps').textContent='P/S '+X(D.ps[last]);
+  $('hl-mktcap').textContent=fmtB(D.mktcap[last])+' Mkt Cap';
+  $('hl-price').textContent=D.last_price;
+  $('hl-cash').textContent=fmtM(D.cash[last])+' Cash';
+  $('hl-netcash').textContent=fmtM(D.net_cash[last])+' Net Cash';
+  $('hl-assets').textContent=fmtM(D.total_assets[last])+' Assets';
+  $('hl-capex').textContent=fmtM(D.fcf[last])+' FCF';
+
+  dc('rev');charts.rev=new Chart($('ch-rev'),{type:'bar',data:{labels:y,datasets:[
+    {label:'Revenue',data:D.revenue,backgroundColor:'rgba(34,211,238,0.75)',borderColor:'#22D3EE',borderWidth:1,borderRadius:3},
+    {label:'Net Income',data:D.net_income,backgroundColor:D.net_income.map(v=>v>=0?'rgba(52,211,153,0.75)':'rgba(248,113,113,0.75)'),borderColor:D.net_income.map(v=>v>=0?'#34D399':'#F87171'),borderWidth:1,borderRadius:3},
+  ]},options:{...baseOpts(revCb),plugins:{legend:{display:false}}}});
+  mkLeg('leg-rev',['Revenue','Net Income (Earnings)'],['#22D3EE','#34D399']);
+
+  dc('revg');charts.revg=new Chart($('ch-revg'),{type:'line',data:{labels:y,datasets:[area(D.revenue_g.map(v=>v!=null?+(v*100).toFixed(2):null),'Rev%',C1,'rgba(124,58,237,.1)')]},options:baseOpts(v=>`${v}%`)});
+
+  dc('ebitda');charts.ebitda=new Chart($('ch-ebitda'),{type:'bar',data:{labels:y,datasets:[
+    {...bars(D.ebitda,'EBITDA',C1),yAxisID:'y'},
+    {...lne(D.ebitda_margin.map(v=>v!=null?+(v*100).toFixed(1):null),'Margen',C2),yAxisID:'y1'},
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:gridC},ticks:{font:{family:MONO,size:9},color:'#94A3B8'}},y:{grid:{color:gridC},ticks:{font:{family:MONO,size:9},color:'#94A3B8',callback:revCb}},y1:{position:'right',grid:{display:false},ticks:{font:{family:MONO,size:9},color:'#94A3B8',callback:v=>`${v}%`}}}}});
+
+  dc('ni');charts.ni=new Chart($('ch-ni'),{type:'bar',data:{labels:y,datasets:[
+    {...bars(D.net_income,'NI',C0),yAxisID:'y'},
+    {...lne(D.eps_diluted.map(v=>v!=null?+v.toFixed(2):null),'EPS',C3),yAxisID:'y1'},
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:gridC},ticks:{font:{family:MONO,size:9},color:'#94A3B8'}},y:{grid:{color:gridC},ticks:{font:{family:MONO,size:9},color:'#94A3B8',callback:revCb}},y1:{position:'right',grid:{display:false},ticks:{font:{family:MONO,size:9},color:'#94A3B8',callback:v=>`$${Number(v).toFixed(2)}`}}}}});
+
+  dc('margins');charts.margins=new Chart($('ch-margins'),{type:'line',data:{labels:y,datasets:[
+    lne(D.gross_margin.map(v=>v!=null?+(v*100).toFixed(1):null),'Gross',C0),
+    lne(D.ebitda_margin.map(v=>v!=null?+(v*100).toFixed(1):null),'EBITDA',C1,[5,3]),
+    lne(D.op_margin.map(v=>v!=null?+(v*100).toFixed(1):null),'Op',C2,[2,2]),
+    lne(D.profit_margin.map(v=>v!=null?+(v*100).toFixed(1):null),'Net',C3,[4,2]),
+  ]},options:baseOpts(v=>`${v}%`)});
+  mkLeg('leg-margins',['Gross','EBITDA','Operating','Net'],[C0,C1,C2,C3]);
+
+  dc('fcf');charts.fcf=new Chart($('ch-fcf'),{type:'bar',data:{labels:y,datasets:[bars(D.fcf,'FCF',C0),{...lne(D.ocf,'OCF',C1),type:'line'}]},options:baseOpts(revCb)});
+  mkLeg('leg-fcf',['FCF (barras)','OCF (linea)'],[C0,C1]);
+
+  dc('returns');charts.returns=new Chart($('ch-returns'),{type:'line',data:{labels:y,datasets:[
+    lne(D.roe.map(v=>v!=null?+(v*100).toFixed(1):null),'ROE',C0),
+    lne(D.roa.map(v=>v!=null?+(v*100).toFixed(1):null),'ROA',C1,[5,3]),
+    lne(D.roic.map(v=>v!=null?+(v*100).toFixed(1):null),'ROIC',C2,[2,2]),
+  ]},options:baseOpts(v=>`${v}%`)});
+  mkLeg('leg-returns',['ROE','ROA','ROIC'],[C0,C1,C2]);
+
+  dc('fcfm');charts.fcfm=new Chart($('ch-fcfm'),{type:'line',data:{labels:y,datasets:[
+    area(D.fcf_margin.map(v=>v!=null?+(v*100).toFixed(1):null),'FCF',C0,'rgba(34,211,238,.1)'),
+    lne(D.profit_margin.map(v=>v!=null?+(v*100).toFixed(1):null),'Profit',C1,[5,3]),
+  ]},options:baseOpts(v=>`${v}%`)});
+  mkLeg('leg-fcfm',['FCF Margin','Profit Margin'],[C0,C1]);
+
+  dc('cash');charts.cash=new Chart($('ch-cash'),{type:'bar',data:{labels:y,datasets:[bars(D.cash,'Cash',COLORS[0]),bars(D.total_debt.map(v=>v||0),'Deuda',COLORS[7])]},options:{...baseOpts(revCb),plugins:{legend:{display:false}}}});
+  mkLeg('leg-cash',['Cash & Equiv.','Deuda Total'],[COLORS[0],COLORS[7]]);
+
+  dc('netcash');charts.netcash=new Chart($('ch-netcash'),{type:'bar',data:{labels:y,datasets:[{label:'Net Cash',data:D.net_cash,backgroundColor:D.net_cash.map(v=>v>=0?'rgba(52,211,153,.65)':'rgba(248,113,113,.65)'),borderColor:D.net_cash.map(v=>v>=0?'#34D399':'#F87171'),borderWidth:1,borderRadius:3}]},options:baseOpts(revCb)});
+
+  dc('assets');charts.assets=new Chart($('ch-assets'),{type:'bar',data:{labels:y,datasets:[bars(D.total_assets,'Assets',COLORS[1]),bars(D.equity,'Equity',COLORS[3])]},options:{...baseOpts(revCb),plugins:{legend:{display:false}}}});
+  mkLeg('leg-assets',['Total Assets','Equity'],[COLORS[1],COLORS[3]]);
+
+  dc('capex');charts.capex=new Chart($('ch-capex'),{type:'bar',data:{labels:y,datasets:[bars(D.fcf,'FCF',COLORS[0]),bars(D.capex.map(v=>Math.abs(v||0)),'Capex',COLORS[4])]},options:{...baseOpts(revCb),plugins:{legend:{display:false}}}});
+  mkLeg('leg-capex',['FCF','Capex (abs)'],[COLORS[0],COLORS[4]]);
+
+  dc('pe');charts.pe=new Chart($('ch-pe'),{type:'line',data:{labels:y,datasets:[area(D.pe.map(v=>v&&isFinite(v)?+v.toFixed(2):null),'P/E',C0,'rgba(34,211,238,.08)'),lne(D.ev_ebitda.map(v=>v&&isFinite(v)?+v.toFixed(2):null),'EV/EBITDA',C1,[5,3])]},options:baseOpts(v=>`${v}x`)});
+  mkLeg('leg-pe',['P/E','EV/EBITDA'],[C0,C1]);
+
+  dc('ps');charts.ps=new Chart($('ch-ps'),{type:'line',data:{labels:y,datasets:[lne(D.ps.map(v=>v!=null?+v.toFixed(2):null),'P/S',C0),lne(D.pfcf.map(v=>v!=null?+v.toFixed(2):null),'P/FCF',C1,[5,3])]},options:baseOpts(v=>`${v}x`)});
+  mkLeg('leg-ps',['P/S','P/FCF'],[C0,C1]);
+
+  dc('mktcap');charts.mktcap=new Chart($('ch-mktcap'),{type:'bar',data:{labels:y,datasets:[{...bars(D.mktcap.map(v=>+(v/1000).toFixed(1)),'MC',C0),yAxisID:'y'},{...lne(D.ev.map(v=>+(v/1000).toFixed(1)),'EV',C1),yAxisID:'y',type:'line'}]},options:baseOpts(v=>`$${v}B`)});
+  mkLeg('leg-mktcap',['Market Cap','Enterprise Value'],[C0,C1]);
+
+  dc('price');charts.price=new Chart($('ch-price'),{type:'line',data:{labels:y,datasets:[area(D.price_hist,'Precio',C1,'rgba(124,58,237,.1)')]},options:baseOpts(v=>`$${v}`)});
+}
+
+function switchTab(name,btn){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  $('panel-'+name).classList.add('active');
+  btn.classList.add('active');
+}
+
+async function runAI(){
+  const btn=$('ai-btn'),panel=$('ai-panel'),content=$('ai-content'),dot=$('ai-dot');
+  const D=COMPANIES[CUR],last=D.years.length-1;
+  panel.classList.add('open');panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+  btn.disabled=true;dot.style.animation='pulse 1.5s infinite';
+  content.innerHTML='<div class="ai-loading"><div class="spinner"></div> Analizando...</div>';
+  const cagr=((Math.pow(Math.abs(D.revenue[last]/D.revenue[0]),1/(D.years.length-1))-1)*100).toFixed(1);
+  const prompt=`Analista financiero senior. Analiza ${D.name} (${CUR}) para inversor argentino buscando retornos en dolares. Precio: ${D.last_price} (${D.last_chg}). Sector: ${D.sector}.
+Datos ${D.years[last]}: Rev=${fmtM(D.revenue[last])} | CAGR=${cagr}% | GrossM=${P(D.gross_margin[last])} | EBITDAm=${P(D.ebitda_margin[last])} | OpM=${P(D.op_margin[last])} | NetM=${P(D.profit_margin[last])} | FCF=${fmtM(D.fcf[last])} (${P(D.fcf_margin[last])}) | ROE=${P(D.roe[last])} | ROIC=${P(D.roic[last])} | NetCash=${fmtM(D.net_cash[last])} | PE=${X(D.pe[last])} | EV/EBITDA=${X(D.ev_ebitda[last])} | PS=${X(D.ps[last])} | MktCap=${fmtB(D.mktcap[last])}
+Genera 4 secciones HTML sin markdown: 1. 🟢 <strong>Fortalezas</strong> (3 puntos •) 2. 🔴 <strong>Riesgos</strong> (2-3 puntos •) 3. 📊 <strong>Valuacion</strong> (cara/barata con datos) 4. ⚡ <strong>Veredicto</strong> (2 frases con horizonte)`;
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:900,messages:[{role:'user',content:prompt}]})});
+    const data=await res.json();
+    content.innerHTML=(data.content?.filter(b=>b.type==='text').map(b=>b.text).join('')||'Sin respuesta.').replace(/\n/g,'<br>');
+  }catch(e){content.innerHTML='<span style="color:var(--bad)">Error de conexion.</span>';}
+  btn.disabled=false;dot.style.animation='none';
+}
+
+async function runRanking(){
+  const btn=$('rank-btn'),rc=$('rank-content');
+  btn.disabled=true;
+  rc.innerHTML='<div style="text-align:center;padding:2rem;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:8px"><div class="spinner"></div> Analizando 13 empresas...</div>';
+  const summary=Object.entries(COMPANIES).map(([tick,D])=>{
+    const l=D.years.length-1;
+    const cagr=((Math.pow(Math.abs(D.revenue[l]/D.revenue[0]),1/(D.years.length-1))-1)*100).toFixed(1);
+    return`${tick}: ${D.sector} | Precio=${D.last_price} | Rev=${fmtM(D.revenue[l])} | CAGR=${cagr}% | GrossM=${P(D.gross_margin[l])} | EBITDAm=${P(D.ebitda_margin[l])} | FCFm=${P(D.fcf_margin[l])} | ROE=${P(D.roe[l])} | ROIC=${P(D.roic[l])} | NetCash=${fmtM(D.net_cash[l])} | PE=${X(D.pe[l])} | PS=${X(D.ps[l])} | MktCap=${fmtB(D.mktcap[l])}`;
+  }).join('\n');
+  const prompt=`Analista financiero senior. Rankea estas 13 empresas del 1 al 13 para inversor argentino en dolares (2-5 anos):\n${summary}\nFormato HTML por empresa:\n<div style="margin-bottom:10px;background:#12182B;border:1px solid #27304A;border-radius:9px;padding:11px 13px"><div style="display:flex;align-items:center;gap:9px;margin-bottom:5px"><span style="font-family:'Courier New',monospace;font-size:19px;font-weight:700;color:#22D3EE;width:28px">N</span><span style="font-size:12px;font-weight:700;color:#F8FAFC">NOMBRE (TICKER) · PRECIO</span><span style="margin-left:auto;color:#F59E0B">ESTRELLAS</span></div><div style="font-size:10px;color:#CBD5E1;line-height:1.6">RAZON con datos</div></div>\nTermina con conclusion general de 2-3 frases.`;
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:2500,messages:[{role:'user',content:prompt}]})});
+    const data=await res.json();
+    rc.innerHTML=data.content?.filter(b=>b.type==='text').map(b=>b.text).join('')||'Sin respuesta.';
+  }catch(e){rc.innerHTML='<div style="color:var(--bad);text-align:center;padding:2rem">Error de conexion.</div>';}
+  btn.disabled=false;
+}
+
+window.addEventListener('DOMContentLoaded',()=>{
+  const bar=$('sel-bar');
+  Object.keys(COMPANIES).forEach(t=>{
+    const btn=document.createElement('button');
+    btn.className='co-btn';btn.dataset.ticker=t;btn.textContent=t;
+    btn.onclick=()=>render(t);bar.appendChild(btn);
+  });
+  render('CRWD');
+});
+</script>
+</body>
+</html>
