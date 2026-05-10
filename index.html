@@ -91,6 +91,20 @@ body{font-family:var(--sans);background:var(--bg);color:var(--fg);min-height:100
 .disclaimer{background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2);border-radius:8px;padding:.6rem .9rem;font-size:10px;color:var(--muted);line-height:1.6;margin-top:1rem;}
 .disclaimer strong{color:var(--amber);}
 .footer{font-size:9px;color:var(--muted);text-align:right;margin-top:.6rem;padding-top:.7rem;border-top:1px solid var(--border);}
+.cmp-panel{background:var(--card);border:1px solid var(--border2);border-radius:12px;padding:1.1rem;}
+.cmp-btn{padding:3px 9px;border:1px solid var(--border2);background:transparent;border-radius:20px;font-size:10px;font-weight:600;color:var(--fg3);cursor:pointer;transition:all .15s;}
+.cmp-btn:hover{border-color:var(--cyan);color:var(--cyan);}
+.cmp-btn.sel{background:rgba(34,211,238,.15);border-color:var(--cyan);color:var(--cyan);}
+.cmp-table{width:100%;border-collapse:collapse;font-size:11px;margin-top:.5rem;}
+.cmp-table th{background:var(--card2);padding:8px 10px;text-align:left;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);border-bottom:1px solid var(--border);}
+.cmp-table th.co-head{text-align:center;font-size:11px;font-weight:700;color:var(--fg);text-transform:none;letter-spacing:0;}
+.cmp-table td{padding:7px 10px;border-bottom:1px solid rgba(39,48,74,.5);color:var(--fg2);font-family:var(--mono);font-size:11px;}
+.cmp-table td.label{font-family:var(--sans);font-size:10px;color:var(--muted);font-weight:600;}
+.cmp-table td.val{text-align:center;}
+.cmp-table tr:hover td{background:rgba(34,211,238,.03);}
+.cmp-best{color:var(--good)!important;font-weight:700;}
+.cmp-worst{color:var(--bad)!important;}
+.cmp-section td{background:var(--card2)!important;font-family:var(--sans)!important;font-size:9px!important;font-weight:700!important;text-transform:uppercase!important;letter-spacing:.07em!important;color:var(--muted)!important;padding:5px 10px!important;}
 @media(max-width:640px){
   .charts-row{grid-template-columns:1fr;}
   .mult-grid{grid-template-columns:repeat(2,1fr);}
@@ -127,6 +141,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--fg);min-height:100
     <button class="tab" onclick="switchTab('financiera',this)">🏦 Financiera</button>
     <button class="tab" onclick="switchTab('valuacion',this)">🔢 Valuacion</button>
     <button class="tab" onclick="switchTab('ranking',this)" style="color:var(--amber)">⭐ Ranking IA</button>
+    <button class="tab" onclick="switchTab('comparar',this)" style="color:var(--cyan)">⚖️ Comparar</button>
   </div>
   <div class="panel active" id="panel-perfil"><div class="profile-card" id="profile-card"></div></div>
   <div class="panel" id="panel-negocio">
@@ -184,6 +199,17 @@ body{font-family:var(--sans);background:var(--bg);color:var(--fg);min-height:100
       <div id="rank-content" style="text-align:center;padding:2rem;color:var(--muted);font-size:12px;">Presiona <strong style="color:var(--cyan)">Generar Ranking</strong> para el analisis comparativo.</div>
     </div>
   </div>
+
+  <!-- PANEL COMPARADOR -->
+  <div class="panel" id="panel-comparar">
+    <div class="cmp-panel">
+      <div class="sec-hdr" style="margin-bottom:1rem"><div class="sec-dot"></div><div class="sec-title">Comparador Side-by-Side</div><div class="sec-line"></div></div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:.8rem">Seleccioná hasta 3 empresas para comparar</div>
+      <div id="cmp-selector" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:1.2rem"></div>
+      <div id="cmp-table"></div>
+    </div>
+  </div>
+
   <div class="disclaimer">⚠️ <strong>Disclaimer:</strong> Este dashboard es exclusivamente para fines educativos e informativos. No constituye asesoramiento financiero ni recomendacion de inversion. Los datos pueden contener errores. Consulta a un asesor financiero certificado antes de tomar decisiones de inversion. Invertir conlleva riesgos, incluyendo la posible perdida del capital invertido.</div>
   <div class="footer">Nico Aronne AP 1613 · Datos: StockAnalysis.com · 13 empresas verificadas · Dashboard con Claude AI · May-2026</div>
 </div>
@@ -703,8 +729,115 @@ window.addEventListener('DOMContentLoaded',()=>{
     btn.className='co-btn';btn.dataset.ticker=t;btn.textContent=t;
     btn.onclick=()=>render(t);bar.appendChild(btn);
   });
+  buildComparatorSelector();
   render('CRWD');
 });
+
+// ─── COMPARADOR ───────────────────────────────────────────────────────────────
+let cmpSelected=[];
+
+function buildComparatorSelector(){
+  const sel=$('cmp-selector');
+  Object.keys(COMPANIES).forEach(t=>{
+    const btn=document.createElement('button');
+    btn.className='cmp-btn';btn.dataset.ticker=t;btn.textContent=t;
+    btn.onclick=()=>toggleCmp(t,btn);
+    sel.appendChild(btn);
+  });
+}
+
+function toggleCmp(ticker,btn){
+  if(cmpSelected.includes(ticker)){
+    cmpSelected=cmpSelected.filter(t=>t!==ticker);
+    btn.classList.remove('sel');
+  } else {
+    if(cmpSelected.length>=3){
+      const first=cmpSelected.shift();
+      $('cmp-selector').querySelectorAll('.cmp-btn').forEach(b=>{if(b.dataset.ticker===first)b.classList.remove('sel');});
+    }
+    cmpSelected.push(ticker);
+    btn.classList.add('sel');
+  }
+  renderComparator();
+}
+
+function renderComparator(){
+  const ct=$('cmp-table');
+  if(cmpSelected.length===0){ct.innerHTML='<div style="text-align:center;padding:2rem;color:var(--muted);font-size:12px;">Seleccioná al menos una empresa para comparar.</div>';return;}
+
+  const tickers=cmpSelected;
+  const DS=tickers.map(t=>COMPANIES[t]);
+  const last=t=>COMPANIES[t].years.length-1;
+
+  // helper: resalta mejor/peor valor en fila (higher=true → mayor es mejor)
+  function highlight(vals, higherBetter=true){
+    const nums=vals.map(v=>parseFloat(v));
+    const valid=nums.filter(n=>!isNaN(n)&&isFinite(n));
+    if(valid.length<2)return vals.map(v=>`<span>${v}</span>`);
+    const best=higherBetter?Math.max(...valid):Math.min(...valid);
+    const worst=higherBetter?Math.min(...valid):Math.max(...valid);
+    return nums.map((n,i)=>{
+      if(isNaN(n)||!isFinite(n))return`<span style="color:var(--muted)">${vals[i]}</span>`;
+      if(n===best)return`<span class="cmp-best">${vals[i]}</span>`;
+      if(n===worst&&valid.length>1)return`<span class="cmp-worst">${vals[i]}</span>`;
+      return`<span>${vals[i]}</span>`;
+    });
+  }
+
+  function row(label, vals, higherBetter=true){
+    const hl=highlight(vals,higherBetter);
+    return`<tr><td class="label">${label}</td>${hl.map(v=>`<td class="val">${v}</td>`).join('')}</tr>`;
+  }
+  function section(label){
+    return`<tr class="cmp-section"><td colspan="${tickers.length+1}">${label}</td></tr>`;
+  }
+
+  const rows=[
+    `<thead><tr>
+      <th style="width:160px">Métrica</th>
+      ${tickers.map(t=>`<th class="co-head">${t}<br><span style="font-size:9px;color:var(--muted);font-weight:400">${COMPANIES[t].name.split(' ').slice(0,2).join(' ')}</span></th>`).join('')}
+    </tr></thead>`,
+    `<tbody>`,
+    section('📋 GENERAL'),
+    row('Sector', tickers.map(t=>COMPANIES[t].sector.split('·')[0].trim()), true),
+    row('Precio', tickers.map(t=>COMPANIES[t].last_price), true),
+    row('Market Cap', tickers.map(t=>fmtB(COMPANIES[t].mktcap[last(t)])), true),
+    row('Año más reciente', tickers.map(t=>COMPANIES[t].years[last(t)]), true),
+
+    section('📈 CRECIMIENTO'),
+    row('Revenue', tickers.map(t=>fmtM(COMPANIES[t].revenue[last(t)])), true),
+    row('Rev Growth YoY', tickers.map(t=>P(COMPANIES[t].revenue_g[last(t)])), true),
+    row('Rev CAGR', tickers.map(t=>{const D=COMPANIES[t];const l=last(t);return((Math.pow(Math.abs(D.revenue[l]/D.revenue[0]),1/(D.years.length-1))-1)*100).toFixed(1)+'%';}), true),
+    row('EPS Diluido', tickers.map(t=>{const v=COMPANIES[t].eps_diluted[last(t)];return v!=null?`$${v.toFixed(2)}`:'—';}), true),
+
+    section('💰 RENTABILIDAD'),
+    row('Gross Margin', tickers.map(t=>P(COMPANIES[t].gross_margin[last(t)])), true),
+    row('EBITDA Margin', tickers.map(t=>P(COMPANIES[t].ebitda_margin[last(t)])), true),
+    row('Op Margin', tickers.map(t=>P(COMPANIES[t].op_margin[last(t)])), true),
+    row('Net Margin', tickers.map(t=>P(COMPANIES[t].profit_margin[last(t)])), true),
+    row('FCF', tickers.map(t=>fmtM(COMPANIES[t].fcf[last(t)])), true),
+    row('FCF Margin', tickers.map(t=>P(COMPANIES[t].fcf_margin[last(t)])), true),
+    row('ROE', tickers.map(t=>P(COMPANIES[t].roe[last(t)])), true),
+    row('ROIC', tickers.map(t=>P(COMPANIES[t].roic[last(t)])), true),
+
+    section('🏦 SITUACIÓN FINANCIERA'),
+    row('Cash', tickers.map(t=>fmtM(COMPANIES[t].cash[last(t)])), true),
+    row('Deuda Total', tickers.map(t=>fmtM(COMPANIES[t].total_debt[last(t)])), false),
+    row('Net Cash / Deuda', tickers.map(t=>fmtM(COMPANIES[t].net_cash[last(t)])), true),
+    row('Total Assets', tickers.map(t=>fmtM(COMPANIES[t].total_assets[last(t)])), true),
+    row('Equity', tickers.map(t=>fmtM(COMPANIES[t].equity[last(t)])), true),
+
+    section('🔢 VALUACIÓN'),
+    row('P/E', tickers.map(t=>X(COMPANIES[t].pe[last(t)])), false),
+    row('EV/EBITDA', tickers.map(t=>X(COMPANIES[t].ev_ebitda[last(t)])), false),
+    row('P/S', tickers.map(t=>X(COMPANIES[t].ps[last(t)])), false),
+    row('P/FCF', tickers.map(t=>X(COMPANIES[t].pfcf[last(t)])), false),
+    row('P/B', tickers.map(t=>X(COMPANIES[t].pb[last(t)])), false),
+    `</tbody>`,
+  ];
+
+  ct.innerHTML=`<table class="cmp-table">${rows.join('')}</table>`;
+}
 </script>
 </body>
 </html>
