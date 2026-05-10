@@ -125,11 +125,20 @@ body{font-family:var(--sans);background:var(--bg);color:var(--fg);min-height:100
   </div>
   <div class="hdr-right">
     <div class="tick-pill" id="hdr-tick">CRWD</div>
+    <button class="ai-btn" id="simple-btn" onclick="runSimple()" style="background:linear-gradient(135deg,#0ea5e9,#06b6d4)">🧠 ¿Qué significa esto?</button>
     <button class="ai-btn" id="ai-btn" onclick="runAI()">✦ Analizar con IA</button>
   </div>
 </header>
 <div class="sel-bar" id="sel-bar"></div>
 <div class="main">
+  <div class="ai-panel" id="simple-panel" style="border-color:#0ea5e9">
+    <div class="ai-header">
+      <div class="ai-dot" id="simple-dot" style="background:#0ea5e9"></div>
+      <div class="ai-title" style="color:#7dd3fc">🧠 Explicacion Simple · <span id="simple-co-name">—</span></div>
+      <button onclick="document.getElementById('simple-panel').classList.remove('open')" style="margin-left:auto;background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px">✕</button>
+    </div>
+    <div class="ai-content" id="simple-content"></div>
+  </div>
   <div class="ai-panel" id="ai-panel">
     <div class="ai-header"><div class="ai-dot" id="ai-dot"></div><div class="ai-title">Analisis IA · <span id="ai-co-name">—</span></div></div>
     <div class="ai-content" id="ai-content"></div>
@@ -521,6 +530,7 @@ function render(ticker){
   const ly=D.years[last];
   $('hdr-tick').textContent=`${ticker} · ${D.exchange}`;
   $('ai-co-name').textContent=D.name;
+  $('simple-co-name').textContent=D.name;
   document.querySelectorAll('.co-btn').forEach(b=>b.classList.toggle('active',b.dataset.ticker===ticker));
 
   const tags=(D.tags||[]).map((t,i)=>{const cl=D.tagColors?.[i]||'cyan';return`<span class="ptag" style="background:${tagBg[cl]};border:1px solid ${tagBdr[cl]};color:${tagClr[cl]}">${t}</span>`;}).join('');
@@ -698,6 +708,51 @@ Datos ${D.years[last]}: Rev=${fmtM(D.revenue[last])} | CAGR=${cagr}% | GrossM=${
 Genera 4 secciones HTML sin markdown: 1. 🟢 <strong>Fortalezas</strong> (3 puntos •) 2. 🔴 <strong>Riesgos</strong> (2-3 puntos •) 3. 📊 <strong>Valuacion</strong> (cara/barata con datos) 4. ⚡ <strong>Veredicto</strong> (2 frases con horizonte)`;
   try{
     const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:900,messages:[{role:'user',content:prompt}]})});
+    const data=await res.json();
+    content.innerHTML=(data.content?.filter(b=>b.type==='text').map(b=>b.text).join('')||'Sin respuesta.').replace(/\n/g,'<br>');
+  }catch(e){content.innerHTML='<span style="color:var(--bad)">Error de conexion.</span>';}
+  btn.disabled=false;dot.style.animation='none';
+}
+
+async function runSimple(){
+  const btn=$('simple-btn'),panel=$('simple-panel'),content=$('simple-content'),dot=$('simple-dot');
+  const D=COMPANIES[CUR],last=D.years.length-1;
+  $('simple-co-name').textContent=D.name;
+  panel.classList.add('open');panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+  btn.disabled=true;dot.style.animation='pulse 1.5s infinite';
+  content.innerHTML='<div class="ai-loading"><div class="spinner"></div> Traduciendo a lenguaje simple...</div>';
+  const cagr=((Math.pow(Math.abs(D.revenue[last]/D.revenue[0]),1/(D.years.length-1))-1)*100).toFixed(1);
+  const prompt=`Sos un profesor que explica finanzas a alguien que NUNCA estudió economía ni negocios. Explicá esta empresa de forma simple, como si le hablaras a un amigo curioso.
+
+Empresa: ${D.name} (${CUR}) — ${D.sector}
+Precio actual: ${D.last_price}
+Año analizado: ${D.years[last]}
+
+Números clave:
+- Ventas: ${fmtM(D.revenue[last])} (creció ${P(D.revenue_g[last])} este año, CAGR ${cagr}% histórico)
+- De cada $100 que vende, le quedan $${(D.gross_margin[last]*100).toFixed(0)} de ganancia bruta
+- Margen operativo: ${P(D.op_margin[last])}
+- Ganancia neta: ${fmtM(D.net_income[last])} (${P(D.profit_margin[last])} de margen)
+- Efectivo real generado (FCF): ${fmtM(D.fcf[last])} (${P(D.fcf_margin[last])} de margen)
+- Retorno sobre capital (ROE): ${P(D.roe[last])}
+- Cash en caja: ${fmtM(D.cash[last])}
+- Deuda total: ${fmtM(D.total_debt[last])}
+- Valuación P/E: ${X(D.pe[last])}, P/S: ${X(D.ps[last])}, EV/EBITDA: ${X(D.ev_ebitda[last])}
+- Market Cap: ${fmtB(D.mktcap[last])}
+
+Generá una explicación en HTML con estas 5 secciones. Usá lenguaje MUY simple, analogías cotidianas, y ejemplos concretos. NUNCA uses jerga financiera sin explicarla:
+
+<div style="margin-bottom:12px"><strong style="color:#7dd3fc;font-size:12px">🏪 ¿A qué se dedica esta empresa?</strong><br><span style="font-size:11px;color:#E2E8F0;line-height:1.8">2-3 oraciones simples explicando el negocio con una analogía de la vida cotidiana</span></div>
+
+<div style="margin-bottom:12px"><strong style="color:#7dd3fc;font-size:12px">📊 ¿Cómo le está yendo con las ventas?</strong><br><span style="font-size:11px;color:#E2E8F0;line-height:1.8">Explicar el revenue y crecimiento en términos simples. Ej: "Vendió X, que es como si una persona que ganaba $1000 ahora gana $X"</span></div>
+
+<div style="margin-bottom:12px"><strong style="color:#7dd3fc;font-size:12px">💵 ¿Está ganando o perdiendo plata?</strong><br><span style="font-size:11px;color:#E2E8F0;line-height:1.8">Explicar márgenes y FCF. Traducir el margen a "de cada $100 que cobra, le quedan $X". Explicar si es bueno o malo vs otras empresas.</span></div>
+
+<div style="margin-bottom:12px"><strong style="color:#7dd3fc;font-size:12px">🏦 ¿Está endeudada o tiene plata guardada?</strong><br><span style="font-size:11px;color:#E2E8F0;line-height:1.8">Explicar la situación de deuda y cash en términos simples. Comparar con algo cotidiano.</span></div>
+
+<div style="margin-bottom:12px"><strong style="color:#7dd3fc;font-size:12px">💰 ¿Está cara o barata para comprar?</strong><br><span style="font-size:11px;color:#E2E8F0;line-height:1.8">Explicar P/E y P/S en términos simples. Ej: "Estás pagando $X por cada $1 de ganancia". Dar contexto si es caro o barato. Terminar con una frase de veredicto simple.</span></div>`;
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1200,messages:[{role:'user',content:prompt}]})});
     const data=await res.json();
     content.innerHTML=(data.content?.filter(b=>b.type==='text').map(b=>b.text).join('')||'Sin respuesta.').replace(/\n/g,'<br>');
   }catch(e){content.innerHTML='<span style="color:var(--bad)">Error de conexion.</span>';}
