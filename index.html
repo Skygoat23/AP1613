@@ -531,6 +531,11 @@ function render(ticker){
   $('hdr-tick').textContent=`${ticker} · ${D.exchange}`;
   $('ai-co-name').textContent=D.name;
   $('simple-co-name').textContent=D.name;
+  // Limpiar paneles al cambiar empresa
+  $('simple-panel').classList.remove('open');
+  $('simple-content').innerHTML='';
+  $('ai-panel').classList.remove('open');
+  $('ai-content').innerHTML='';
   document.querySelectorAll('.co-btn').forEach(b=>b.classList.toggle('active',b.dataset.ticker===ticker));
 
   const tags=(D.tags||[]).map((t,i)=>{const cl=D.tagColors?.[i]||'cyan';return`<span class="ptag" style="background:${tagBg[cl]};border:1px solid ${tagBdr[cl]};color:${tagClr[cl]}">${t}</span>`;}).join('');
