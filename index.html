@@ -701,22 +701,147 @@ function switchTab(name,btn){
   btn.classList.add('active');
 }
 
-async function runAI(){
+function runAI(){
   const btn=$('ai-btn'),panel=$('ai-panel'),content=$('ai-content'),dot=$('ai-dot');
   const D=COMPANIES[CUR],last=D.years.length-1;
+  const ly=D.years[last];
   panel.classList.add('open');panel.scrollIntoView({behavior:'smooth',block:'nearest'});
-  btn.disabled=true;dot.style.animation='pulse 1.5s infinite';
-  content.innerHTML='<div class="ai-loading"><div class="spinner"></div> Analizando...</div>';
+
   const cagr=((Math.pow(Math.abs(D.revenue[last]/D.revenue[0]),1/(D.years.length-1))-1)*100).toFixed(1);
-  const prompt=`Analista financiero senior. Analiza ${D.name} (${CUR}) para inversor argentino buscando retornos en dolares. Precio: ${D.last_price} (${D.last_chg}). Sector: ${D.sector}.
-Datos ${D.years[last]}: Rev=${fmtM(D.revenue[last])} | CAGR=${cagr}% | GrossM=${P(D.gross_margin[last])} | EBITDAm=${P(D.ebitda_margin[last])} | OpM=${P(D.op_margin[last])} | NetM=${P(D.profit_margin[last])} | FCF=${fmtM(D.fcf[last])} (${P(D.fcf_margin[last])}) | ROE=${P(D.roe[last])} | ROIC=${P(D.roic[last])} | NetCash=${fmtM(D.net_cash[last])} | PE=${X(D.pe[last])} | EV/EBITDA=${X(D.ev_ebitda[last])} | PS=${X(D.ps[last])} | MktCap=${fmtB(D.mktcap[last])}
-Genera 4 secciones HTML sin markdown: 1. 🟢 <strong>Fortalezas</strong> (3 puntos •) 2. 🔴 <strong>Riesgos</strong> (2-3 puntos •) 3. 📊 <strong>Valuacion</strong> (cara/barata con datos) 4. ⚡ <strong>Veredicto</strong> (2 frases con horizonte)`;
-  try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:900,messages:[{role:'user',content:prompt}]})});
-    const data=await res.json();
-    content.innerHTML=(data.content?.filter(b=>b.type==='text').map(b=>b.text).join('')||'Sin respuesta.').replace(/\n/g,'<br>');
-  }catch(e){content.innerHTML='<span style="color:var(--bad)">Error de conexion.</span>';}
-  btn.disabled=false;dot.style.animation='none';
+  const fcfM=D.fcf_margin[last], gm=D.gross_margin[last], opm=D.op_margin[last];
+  const roic=D.roic[last], roe=D.roe[last];
+  const netC=D.net_cash[last], pe=D.pe[last], ps=D.ps[last], pfcf=D.pfcf[last], evEbitda=D.ev_ebitda[last];
+  const rev=D.revenue[last], revG=D.revenue_g[last];
+  const fcf=D.fcf[last], ni=D.net_income[last];
+  const cash=D.cash[last], debt=D.total_debt[last];
+
+  // ── FORTALEZAS ─────────────────────────────────────────────────────────────
+  const fortalezas = [];
+
+  // Crecimiento
+  if(cagr > 30) fortalezas.push(`<strong>Hipercrecimiento sostenido:</strong> CAGR de revenue ${cagr}% — entre los más altos de todo el mercado. En ${ly} creció ${P(revG)} YoY hasta ${fmtM(rev)}.`);
+  else if(cagr > 15) fortalezas.push(`<strong>Crecimiento consistente:</strong> CAGR de ${cagr}% histórico. Revenue ${ly}: ${fmtM(rev)} (${P(revG)} YoY). Trayectoria sólida y predecible.`);
+  else if(cagr > 5) fortalezas.push(`<strong>Crecimiento estable:</strong> CAGR de ${cagr}% refleja un negocio maduro y predecible. Revenue ${ly}: ${fmtM(rev)}.`);
+
+  // FCF
+  if(fcfM != null && fcfM > 0.25) fortalezas.push(`<strong>Máquina de generación de caja:</strong> FCF margin de ${P(fcfM)} — excepcional. FCF de ${fmtM(fcf)} en ${ly}. Cada dólar vendido genera ${(fcfM*100).toFixed(0)} centavos de efectivo real.`);
+  else if(fcfM != null && fcfM > 0.10) fortalezas.push(`<strong>FCF positivo y sólido:</strong> FCF margin ${P(fcfM)}, generando ${fmtM(fcf)} en ${ly}. Negocio que convierte ventas en caja real sin trucos contables.`);
+  else if(fcfM != null && fcfM > 0) fortalezas.push(`<strong>FCF positivo:</strong> ${fmtM(fcf)} en ${ly} (${P(fcfM)} de margen). La empresa genera caja real, aunque con margen todavía en desarrollo.`);
+
+  // Gross margin
+  if(gm > 0.70) fortalezas.push(`<strong>Modelo de negocio de altísima calidad:</strong> Gross margin ${P(gm)} — típico de software/SaaS puro. Significa que el costo de entregar el producto es mínimo, con enorme potencial de escalabilidad.`);
+  else if(gm > 0.50) fortalezas.push(`<strong>Márgenes brutos elevados (${P(gm)}):</strong> Señal de pricing power y ventaja competitiva. La empresa puede subir precios sin perder clientes.`);
+  else if(gm > 0.35) fortalezas.push(`<strong>Márgenes brutos saludables (${P(gm)}):</strong> Adecuados para el sector. La empresa controla bien sus costos directos.`);
+
+  // ROIC
+  if(roic != null && roic > 0.30) fortalezas.push(`<strong>ROIC excepcional (${P(roic)}):</strong> Por cada $100 invertidos en el negocio, genera $${(roic*100).toFixed(0)} de retorno. Muy por encima del costo de capital — crea valor económico real para el accionista.`);
+  else if(roic != null && roic > 0.15) fortalezas.push(`<strong>ROIC sólido (${P(roic)}):</strong> La empresa genera retornos superiores a su costo de capital, indicador clave de ventaja competitiva (moat).`);
+  else if(roic != null && roic > 0.08) fortalezas.push(`<strong>ROIC positivo (${P(roic)}):</strong> Retornos sobre capital invertido por encima del mínimo aceptable. El negocio crea valor, aunque con margen ajustado.`);
+
+  // Solidez financiera
+  if(netC != null && netC > 1000) fortalezas.push(`<strong>Balance blindado:</strong> Caja neta positiva de ${fmtM(netC)} — tiene ${fmtM(cash)} en caja y solo ${fmtM(debt)} de deuda. Flexibilidad total para invertir, hacer buybacks o adquisiciones.`);
+  else if(netC != null && netC > 0) fortalezas.push(`<strong>Balance sano:</strong> Caja neta positiva de ${fmtM(netC)}. Más efectivo que deuda — posición financiera sin riesgos de liquidez.`);
+
+  // Op margin
+  if(opm != null && opm > 0.30) fortalezas.push(`<strong>Margen operativo de clase mundial (${P(opm)}):</strong> Cada $100 en ventas genera $${(opm*100).toFixed(0)} de ganancia operativa. Disciplina de costos excepcional.`);
+  else if(opm != null && opm > 0.15) fortalezas.push(`<strong>Rentabilidad operativa probada (${P(opm)}):</strong> Margen operativo saludable y sostenible, que demuestra que el negocio escala bien.`);
+
+  // ── RIESGOS ────────────────────────────────────────────────────────────────
+  const riesgos = [];
+
+  // Valuación cara
+  const psNum = ps || 0;
+  if(pe != null && pe > 80) riesgos.push(`<strong>Valuación premium elevada (P/E ${X(pe)}):</strong> El mercado ya descuenta varios años de crecimiento futuro. Cualquier decepción en resultados puede provocar caídas importantes del precio.`);
+  else if(pe != null && pe > 40) riesgos.push(`<strong>Valuación exigente (P/E ${X(pe)}):</strong> Múltiplo alto que requiere que la empresa siga ejecutando perfectamente. Poco margen de error ante resultados mediocres.`);
+  if(psNum > 15 && pe == null) riesgos.push(`<strong>Valuación por expectativas (P/S ${X(ps)}):</strong> Sin P/E calculable, el mercado paga por el futuro potencial. Si el crecimiento decepciona, la corrección puede ser severa.`);
+
+  // FCF negativo
+  if(fcfM != null && fcfM < 0) riesgos.push(`<strong>FCF negativo (${P(fcfM)}):</strong> La empresa gasta más de lo que genera. Necesita financiamiento externo para operar o crecer. Riesgo si los mercados de capital se endurecen o el crecimiento no llega.`);
+  else if(fcfM != null && fcfM < 0.05 && fcfM >= 0) riesgos.push(`<strong>FCF aún bajo (${P(fcfM)}):</strong> Margen de caja ajustado. La empresa genera caja pero con poco colchón ante imprevistos operativos.`);
+
+  // Deuda
+  if(netC != null && netC < -5000) riesgos.push(`<strong>Carga de deuda significativa:</strong> Deuda neta de ${fmtM(Math.abs(netC))}. En entorno de tasas altas, el servicio de deuda consume caja y limita la flexibilidad estratégica.`);
+  else if(netC != null && netC < -1000) riesgos.push(`<strong>Deuda neta de ${fmtM(Math.abs(netC))}:</strong> Más deuda que caja. Manejable hoy, pero hay que monitorear la evolución en contexto de tasas elevadas.`);
+
+  // Crecimiento desacelerado
+  if(revG != null && revG < 0.05 && cagr > 10) riesgos.push(`<strong>Desaceleración del crecimiento:</strong> El último año creció solo ${P(revG)} vs CAGR histórico de ${cagr}%. Si esta tendencia continúa, el múltiplo de valuación podría comprimirse significativamente.`);
+  if(revG != null && revG < 0) riesgos.push(`<strong>Revenue en caída (${P(revG)} YoY):</strong> Contracción de ingresos que puede reflejar pérdida de cuota de mercado, ciclo desfavorable o problemas estructurales del negocio.`);
+
+  // Net income negativo con FCF positivo
+  if(ni != null && ni < 0 && fcf != null && fcf > 0) riesgos.push(`<strong>Pérdida contable con FCF positivo:</strong> La empresa pierde dinero en el papel (${fmtM(ni)}) pero genera caja real (${fmtM(fcf)}). Esto refleja gastos no monetarios elevados (SBC, D&A). Positivo para caja, pero el SBC elevado diluye al accionista.`);
+
+  // Sector específico
+  if(D.sector.includes('Oil') || D.sector.includes('E&P')) riesgos.push(`<strong>Exposición al precio del commoditiy:</strong> El negocio depende críticamente del precio del petróleo/gas. Una caída sostenida del WTI comprime márgenes y FCF directamente, independientemente de la ejecución del management.`);
+  if(D.sector.includes('NAND') || D.sector.includes('Flash')) riesgos.push(`<strong>Ciclicidad del sector NAND:</strong> La industria de memoria flash es altamente cíclica — períodos de sobreoferta pueden colapsar precios y márgenes en meses. Los últimos años son testigo de esa volatilidad.`);
+  if(D.sector.includes('REIT')) riesgos.push(`<strong>Sensibilidad a tasas de interés:</strong> Los REITs tienen correlación inversa con las tasas. Tasas altas elevan el costo de la deuda y hacen menos atractivo el yield del dividendo vs bonos del Tesoro.`);
+  if(D.sector.includes('Uranium') || D.sector.includes('Nuclear')) riesgos.push(`<strong>Riesgo regulatorio y geopolítico:</strong> El uranio es un commodity regulado y sensible a eventos nucleares globales. Un accidente nuclear en cualquier planta del mundo puede afectar el sentimiento del sector inmediatamente.`);
+  if(D.sector.includes('Defense') || D.sector.includes('Drones')) riesgos.push(`<strong>Concentración en contratos gubernamentales:</strong> Los ingresos dependen de contratos del gobierno de EE.UU. Los cambios políticos, recortes presupuestarios o pérdidas de contratos tienen impacto directo e inmediato en el revenue.`);
+
+  // Asegurar mínimo 2 riesgos
+  if(riesgos.length < 2) riesgos.push(`<strong>Competencia creciente:</strong> El sector ${D.sector.split('·')[0].trim()} atrae capital e innovación de competidores. Mantener la ventaja competitiva requiere inversión constante en I+D y retención de talento.`);
+  if(riesgos.length < 2) riesgos.push(`<strong>Riesgo macro:</strong> Como toda empresa cotizada en dólares, está expuesta a recesión en EE.UU., endurecimiento de condiciones financieras globales y volatilidad de mercados emergentes.`);
+
+  // ── VALUACIÓN ──────────────────────────────────────────────────────────────
+  let valTexto = '';
+  const mktcap = D.mktcap[last];
+
+  // Comparar múltiplos vs histórico
+  const avgPS = avg(D.ps), avgPE = avg(D.pe), avgPFCF = avg(D.pfcf), avgEV = avg(D.ev_ebitda);
+  const vsHistPS = ps && avgPS ? ((ps-avgPS)/avgPS*100).toFixed(0) : null;
+  const vsHistPE = pe && avgPE ? ((pe-avgPE)/avgPE*100).toFixed(0) : null;
+
+  if(pe != null && pe > 0){
+    const peDesc = pe > 80 ? 'extremadamente caro' : pe > 50 ? 'premium elevado' : pe > 30 ? 'razonable para su crecimiento' : pe > 15 ? 'valuación atractiva' : 'barato históricamente';
+    valTexto += `<strong>P/E ${X(pe)}</strong> — ${peDesc}${vsHistPE ? ` (${vsHistPE > 0 ? '+' : ''}${vsHistPE}% vs su promedio histórico ${X(avgPE)})` : ''}. `;
+  }
+  if(ps != null){
+    const psDesc = ps > 20 ? 'muy caro en ventas' : ps > 10 ? 'premium en ventas' : ps > 5 ? 'valuación moderada' : ps > 2 ? 'barato en ventas' : 'muy barato en ventas';
+    valTexto += `<strong>P/S ${X(ps)}</strong> — ${psDesc}${vsHistPS ? ` (${vsHistPS > 0 ? '+' : ''}${vsHistPS}% vs histórico ${X(avgPS)})` : ''}. `;
+  }
+  if(pfcf != null && pfcf > 0) valTexto += `<strong>P/FCF ${X(pfcf)}</strong> — pagás $${pfcf.toFixed(0)} por cada $1 de efectivo libre generado. `;
+  if(evEbitda != null && evEbitda > 0) valTexto += `<strong>EV/EBITDA ${X(evEbitda)}</strong>. `;
+  valTexto += `Market Cap ${fmtB(mktcap)}. `;
+
+  // Veredicto de valuación
+  if(pe != null && pe < 20 && fcfM > 0.15) valTexto += `En términos históricos y relativos, <strong>la acción luce atractiva</strong> para su nivel de calidad y generación de caja.`;
+  else if(pe != null && pe > 60) valTexto += `La valuación descuenta un escenario muy optimista. <strong>Solo tiene sentido si el crecimiento se mantiene elevado</strong> por varios años más.`;
+  else if(ps > 15 && pe == null) valTexto += `<strong>Valuación por expectativas puras</strong> — el mercado apuesta al potencial futuro, no a los fundamentals actuales.`;
+  else valTexto += `Valuación <strong>en línea con empresas de calidad similar</strong> en el sector. Ni regalo ni burbuja.`;
+
+  // ── VEREDICTO ──────────────────────────────────────────────────────────────
+  let veredicto = '';
+  const score = (fcfM>0.20?3:fcfM>0.05?2:fcfM!=null&&fcfM>0?1:0) +
+                (cagr>25?3:cagr>12?2:cagr>5?1:0) +
+                (roic!=null&&roic>0.20?2:roic!=null&&roic>0.08?1:0) +
+                (netC!=null&&netC>0?2:netC!=null&&netC>-2000?1:0);
+
+  if(score >= 8){
+    veredicto = `<strong>${D.name}</strong> es una de las empresas de mayor calidad del portafolio — combina crecimiento sólido, FCF excepcional y ROIC superior. Para un inversor en dólares con horizonte de <strong>3-5 años</strong>, representa una posición de alta convicción. El principal riesgo es pagar de más por una empresa que ya es cara, por lo que el sizing y el precio de entrada son clave.`;
+  } else if(score >= 5){
+    veredicto = `<strong>${D.name}</strong> es un negocio de calidad con fundamentos sólidos y tesis de inversión clara. Para un inversor en dólares con horizonte <strong>2-4 años</strong>, encaja bien como posición de cartera media. Monitorear la ejecución trimestral, especialmente la evolución de márgenes y crecimiento de revenue.`;
+  } else if(score >= 3){
+    veredicto = `<strong>${D.name}</strong> tiene una tesis interesante pero con riesgos concretos que requieren tolerancia a la volatilidad. Apropiada como <strong>posición especulativa pequeña</strong> (5-10% del portafolio) para inversores con horizonte 3-5 años y que aceptan escenarios binarios de alto riesgo/retorno.`;
+  } else {
+    veredicto = `<strong>${D.name}</strong> es la apuesta de mayor riesgo/potencial del portafolio. Los fundamentals actuales son débiles, pero la tesis es forward-looking. Solo apta para inversores con <strong>alta tolerancia al riesgo</strong> y horizonte largo. Nunca más del 5% del portafolio.`;
+  }
+
+  // ── RENDER ─────────────────────────────────────────────────────────────────
+  const sec = (emoji, title, items, isText=false) => {
+    const body = isText
+      ? `<div style="font-size:11px;color:var(--fg2);line-height:1.75">${items}</div>`
+      : `<ul style="margin:0;padding-left:1.2rem">${items.slice(0,3).map(i=>`<li style="font-size:11px;color:var(--fg2);line-height:1.75;margin-bottom:4px">${i}</li>`).join('')}</ul>`;
+    return `<div style="margin-bottom:12px;padding:10px 12px;background:var(--card2);border-left:3px solid var(--border2);border-radius:0 8px 8px 0">
+      <div style="font-size:11px;font-weight:700;color:var(--cyan);margin-bottom:6px">${emoji} ${title}</div>
+      ${body}
+    </div>`;
+  };
+
+  content.innerHTML =
+    sec('🟢','Fortalezas', fortalezas.slice(0,3)) +
+    sec('🔴','Riesgos', riesgos.slice(0,3)) +
+    sec('📊','Valuación', valTexto, true) +
+    sec('⚡','Veredicto', veredicto, true) +
+    `<div style="font-size:9px;color:var(--muted);margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">⚠️ Análisis educativo generado con datos históricos del dashboard. No es recomendación de inversión.</div>`;
 }
 
 function runSimple(){
@@ -872,16 +997,24 @@ function runRanking(){
     // REITs y utilities: penalizar menos la deuda
     if(D.sector.includes('REIT') || D.sector.includes('Utility') || D.sector.includes('LNG')) sSolidez = Math.max(sSolidez, 8);
 
-    // 5. VALUACIÓN RELATIVA (0-10 pts) — menor P/S relativo al crecimiento = mejor
+    // 5. VALUACIÓN RELATIVA (0-10 pts)
+    // Lógica: P/S ajustado por FCF margin y crecimiento
+    // Una empresa con alto FCF margin y alto crecimiento MERECE P/S alto
     let sValuacion = 5;
     const ps = D.ps[l];
-    if(ps != null && ps > 0 && cagr > 0){
-      const peg_like = ps / (cagr/10); // P/S ajustado por crecimiento
-      if(peg_like < 0.5)  sValuacion = 10;
-      else if(peg_like < 1) sValuacion = 8;
-      else if(peg_like < 2) sValuacion = 6;
-      else if(peg_like < 4) sValuacion = 4;
-      else sValuacion = 2;
+    const fcfMval = D.fcf_margin[l] || 0;
+    const gmval = D.gross_margin[l] || 0;
+    if(ps != null && ps > 0){
+      // Calidad del negocio: FCF margin + grooss margin normalizado
+      const qualityScore = Math.max(0, fcfMval) + (gmval * 0.3);
+      // P/S "justo" = crecimiento * (1 + calidad) — calibrado para tech real
+      const fairPS = (cagr / 8) * (1 + qualityScore * 3);
+      const ratio = ps / Math.max(fairPS, 0.5);
+      if(ratio < 0.6)  sValuacion = 10; // muy barata vs lo que merece
+      else if(ratio < 0.9) sValuacion = 8;
+      else if(ratio < 1.4) sValuacion = 6; // valuación justa
+      else if(ratio < 2.5) sValuacion = 4;
+      else sValuacion = 2; // cara incluso para su calidad
     }
 
     // 6. MOMENTUM/CATALIZADORES (0-5 pts) — bonus manual por tesis especial
